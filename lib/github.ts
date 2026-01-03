@@ -135,12 +135,14 @@ class GitHubAPI {
       this.syncQueue = this.syncQueue.then(async () => {
         try {
           // Always get fresh SHA before saving to prevent conflicts
-          let sha = this.shaCache.get(filename);
-          
+          let sha: string | undefined = this.shaCache.get(filename);
+
           try {
             const existing = await this.request(`/repos/${this.repo}/contents/${filename}.json`);
             sha = existing.sha;
-            this.shaCache.set(filename, sha);
+            if (sha) {
+              this.shaCache.set(filename, sha);
+            }
           } catch (e: any) {
             // File doesn't exist yet, that's ok
             if (!e.message.includes('404')) {
@@ -148,25 +150,23 @@ class GitHubAPI {
             }
             sha = undefined;
           }
-
           const content = btoa(unescape(encodeURIComponent(JSON.stringify(data, null, 2))));
-          
+
           const body: any = {
             message: message || `Update ${filename} - ${new Date().toISOString()}`,
             content,
           };
-
           if (sha) {
             body.sha = sha;
           }
-
           const result = await this.request(`/repos/${this.repo}/contents/${filename}.json`, {
             method: 'PUT',
             body: JSON.stringify(body),
           });
-
           const newSha = result.content.sha;
-          this.shaCache.set(filename, newSha);
+          if (newSha) {
+            this.shaCache.set(filename, newSha);
+          }
           resolve(newSha);
         } catch (error) {
           reject(error);
@@ -177,7 +177,7 @@ class GitHubAPI {
 
   async deleteFile(filename: string): Promise<void> {
     let sha = this.shaCache.get(filename);
-    
+
     if (!sha) {
       try {
         const file = await this.request(`/repos/${this.repo}/contents/${filename}.json`);
@@ -212,7 +212,7 @@ export function debounce<T extends (...args: any[]) => any>(
   wait: number
 ): (...args: Parameters<T>) => void {
   let timeout: NodeJS.Timeout | null = null;
-  
+
   return (...args: Parameters<T>) => {
     if (timeout) {
       clearTimeout(timeout);
