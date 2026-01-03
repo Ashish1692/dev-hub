@@ -134,20 +134,34 @@ class GitHubAPI {
     return new Promise((resolve, reject) => {
       this.syncQueue = this.syncQueue.then(async () => {
         try {
+          console.log(`[GitHub] Saving ${filename}.json to ${this.repo}`);
+
+          // Check if repo exists first
+          const repoExists = await this.checkRepo();
+          if (!repoExists) {
+            const errorMsg = `Repository ${this.repo} not found. Please create it first or select a different repository.`;
+            console.error('[GitHub] Repo check failed:', errorMsg);
+            throw new Error(errorMsg);
+          }
+          console.log('[GitHub] Repo exists, proceeding with save');
           // Always get fresh SHA before saving to prevent conflicts
           let sha: string | undefined = this.shaCache.get(filename);
 
           try {
+            console.log(`[GitHub] Checking if ${filename}.json exists...`);
             const existing = await this.request(`/repos/${this.repo}/contents/${filename}.json`);
             sha = existing.sha;
             if (sha) {
               this.shaCache.set(filename, sha);
             }
+            console.log(`[GitHub] File exists, SHA: ${sha}`);
           } catch (e: any) {
             // File doesn't exist yet, that's ok
             if (!e.message.includes('404')) {
+              console.error('[GitHub] Error checking file (not 404):', e.message);
               throw e;
             }
+            console.log(`[GitHub] File doesn't exist yet, will create new file`);
             sha = undefined;
           }
           const content = btoa(unescape(encodeURIComponent(JSON.stringify(data, null, 2))));
@@ -159,6 +173,7 @@ class GitHubAPI {
           if (sha) {
             body.sha = sha;
           }
+          console.log(`[GitHub] Sending PUT request to create/update ${filename}.json`);
           const result = await this.request(`/repos/${this.repo}/contents/${filename}.json`, {
             method: 'PUT',
             body: JSON.stringify(body),
@@ -167,8 +182,10 @@ class GitHubAPI {
           if (newSha) {
             this.shaCache.set(filename, newSha);
           }
+          console.log(`[GitHub] Successfully saved ${filename}.json, new SHA: ${newSha}`);
           resolve(newSha);
-        } catch (error) {
+        } catch (error: any) {
+          console.error(`[GitHub] Failed to save ${filename}.json:`, error.message);
           reject(error);
         }
       });
