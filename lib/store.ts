@@ -414,14 +414,11 @@ export const useStore = create<AppState>((set, get) => {
       if (workspaces.includes(name)) {
         throw new Error('Workspace already exists');
       }
-      console.log(`[Store] Creating workspace: ${name}`);
       set({ isSyncing: true, syncStatus: `Creating workspace "${name}"...` });
       try {
         const defaultData = getDefaultData();
-        console.log('[Store] Generated default data, calling saveFile...');
         await github.saveFile(name, defaultData);
 
-        console.log('[Store] Workspace created successfully');
         set({
           workspaces: [...workspaces, name],
           currentWorkspace: name,
@@ -435,7 +432,6 @@ export const useStore = create<AppState>((set, get) => {
         });
         setTimeout(() => set({ syncStatus: '' }), 2000);
       } catch (error: any) {
-        console.error('[Store] Failed to create workspace:', error.message);
         set({
           isSyncing: false,
           syncStatus: `Error creating workspace: ${error.message}`
