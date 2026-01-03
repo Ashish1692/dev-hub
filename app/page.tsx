@@ -159,40 +159,74 @@ function LoginScreen() {
 
 // Repository Selector
 function RepoSelector() {
-  const { user, availableRepos, loadAvailableRepos, setRepo, createNewRepo, isSyncing, syncStatus } = useStore();
+  const { user, availableRepos, loadAvailableRepos, setRepo, createNewRepo, isSyncing, syncStatus,isAuthenticated } = useStore();
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   const [showCreate, setShowCreate] = useState(false);
   const [newRepoName, setNewRepoName] = useState('devhub-data');
   const [filter, setFilter] = useState('');
 
   useEffect(() => {
-    loadAvailableRepos().finally(() => setLoading(false));
-  }, [loadAvailableRepos]);
+    // Only load repos when authenticated (token is set)
+    if (!isAuthenticated) {
+      setLoading(false);
+      return;
+    }
+    const loadRepos = async () => {
+      try {
+        setError('');
+        await loadAvailableRepos();
+      } catch (err: any) {
+        console.error('Failed to load repos:', err);
+        setError(err.message || 'Failed to load repositories');
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadRepos();
+  }, [loadAvailableRepos, isAuthenticated]);
+
 
   const filteredRepos = availableRepos.filter(repo =>
     repo.full_name.toLowerCase().includes(filter.toLowerCase())
   );
-
   const handleCreateRepo = async () => {
     try {
+      setError('');
       await createNewRepo(newRepoName);
-    } catch (error) {
-      console.error(error);
+    } catch (err: any) {
+      console.error(err);
+      setError(err.message || 'Failed to create repository');
     }
   };
-
   const handleSelectRepo = async (repoName: string) => {
-    setLoading(true);
-    await setRepo(repoName);
-    setLoading(false);
+    try {
+      setLoading(true);
+      setError('');
+      await setRepo(repoName);
+    } catch (err: any) {
+      console.error(err);
+      setError(err.message || 'Failed to select repository');
+    } finally {
+      setLoading(false);
+    }
   };
-
+  const handleRetry = () => {
+    setLoading(true);
+    setError('');
+    loadAvailableRepos()
+      .catch(err => {
+        console.error('Retry failed:', err);
+        setError(err.message || 'Failed to load repositories');
+      })
+      .finally(() => setLoading(false));
+  };
   if (loading || isSyncing) {
     return (
       <div className="flex-1 flex items-center justify-center">
         <div className="text-center">
           <Icons.Sync className="w-10 h-10 animate-spin text-indigo-400 mx-auto mb-4" />
-          <p className="text-gray-400">{syncStatus || 'Loading...'}</p>
+          <p className="text-gray-400">{syncStatus || 'Loading repositories...'}</p>
         </div>
       </div>
     );
@@ -250,6 +284,18 @@ function RepoSelector() {
         </div>
 
         <div className="p-4">
+          {error && (
+            <div className="mb-3 p-3 bg-red-900/20 border border-red-500 rounded-lg">
+              <p className="text-red-400 text-sm mb-2">{error}</p>
+              <button
+                onClick={handleRetry}
+                className="text-xs text-red-300 hover:text-red-200 underline"
+              >
+                Click here to retry
+              </button>
+            </div>
+          )}
+
           <input
             type="text"
             value={filter}
@@ -259,8 +305,13 @@ function RepoSelector() {
           />
 
           <div className="max-h-64 overflow-y-auto space-y-2 scrollbar-thin">
-            {filteredRepos.length === 0 ? (
-              <p className="text-center text-gray-500 py-4">No repositories found</p>
+            {availableRepos.length === 0 && !error ? (
+              <div className="text-center text-gray-500 py-4">
+                <p className="mb-2">No repositories found</p>
+                <p className="text-xs">Create a new repository above to get started</p>
+              </div>
+            ) : filteredRepos.length === 0 && filter ? (
+              <p className="text-center text-gray-500 py-4">No repositories match "{filter}"</p>
             ) : (
               filteredRepos.map(repo => (
                 <button
@@ -280,6 +331,12 @@ function RepoSelector() {
               ))
             )}
           </div>
+
+          {availableRepos.length > 0 && (
+            <p className="text-xs text-gray-500 text-center mt-3">
+              Showing {filteredRepos.length} of {availableRepos.length} repositories
+            </p>
+          )}
         </div>
       </div>
     </div>
