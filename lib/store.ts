@@ -415,16 +415,32 @@ export const useStore = create<AppState>((set, get) => {
         throw new Error('Workspace already exists');
       }
 
-      const defaultData = getDefaultData();
-      await github.saveFile(name, defaultData);
+      set({ isSyncing: true, syncStatus: `Creating workspace "${name}"...` });
 
-      set({
-        workspaces: [...workspaces, name],
-        currentWorkspace: name,
-        data: defaultData,
-        selectedNote: null,
-        selectedScript: null,
-      });
+      try {
+        const defaultData = getDefaultData();
+        await github.saveFile(name, defaultData);
+
+        set({
+          workspaces: [...workspaces, name],
+          currentWorkspace: name,
+          data: defaultData,
+          selectedNote: null,
+          selectedScript: null,
+          isSyncing: false,
+          syncStatus: `Workspace "${name}" created`,
+          lastSynced: new Date(),
+          hasUnsavedChanges: false,
+        });
+
+        setTimeout(() => set({ syncStatus: '' }), 2000);
+      } catch (error: any) {
+        set({
+          isSyncing: false,
+          syncStatus: `Error creating workspace: ${error.message}`
+        });
+        throw error;
+      }
     },
 
     deleteWorkspace: async (name: string) => {
@@ -572,27 +588,27 @@ export const useStore = create<AppState>((set, get) => {
             columns: state.data.kanban.columns.map(col =>
               col.id === columnId
                 ? {
-                    ...col,
-                    tasks: col.tasks.map(task => {
-                      if (task.id !== taskId) return task;
+                  ...col,
+                  tasks: col.tasks.map(task => {
+                    if (task.id !== taskId) return task;
 
-                      const newVersions = updates.content !== undefined && updates.content !== task.content
-                        ? [...task.versions, {
-                            id: generateId(),
-                            timestamp: now,
-                            action: 'Content updated',
-                            content: task.content,
-                          }]
-                        : task.versions;
+                    const newVersions = updates.content !== undefined && updates.content !== task.content
+                      ? [...task.versions, {
+                        id: generateId(),
+                        timestamp: now,
+                        action: 'Content updated',
+                        content: task.content,
+                      }]
+                      : task.versions;
 
-                      return {
-                        ...task,
-                        ...updates,
-                        versions: newVersions,
-                        updatedAt: now,
-                      };
-                    }),
-                  }
+                    return {
+                      ...task,
+                      ...updates,
+                      versions: newVersions,
+                      updatedAt: now,
+                    };
+                  }),
+                }
                 : col
             ),
           },
@@ -687,13 +703,13 @@ export const useStore = create<AppState>((set, get) => {
             columns: state.data.kanban.columns.map(col =>
               col.id === columnId
                 ? {
-                    ...col,
-                    tasks: col.tasks.map(task =>
-                      task.id === taskId
-                        ? { ...task, timeTracking: [...task.timeTracking, entry] }
-                        : task
-                    ),
-                  }
+                  ...col,
+                  tasks: col.tasks.map(task =>
+                    task.id === taskId
+                      ? { ...task, timeTracking: [...task.timeTracking, entry] }
+                      : task
+                  ),
+                }
                 : col
             ),
           },
@@ -714,35 +730,35 @@ export const useStore = create<AppState>((set, get) => {
             columns: state.data.kanban.columns.map(col =>
               col.id === columnId
                 ? {
-                    ...col,
-                    tasks: col.tasks.map(task => {
-                      if (task.id !== taskId) return task;
+                  ...col,
+                  tasks: col.tasks.map(task => {
+                    if (task.id !== taskId) return task;
 
-                      const lastEntry = task.timeTracking[task.timeTracking.length - 1];
-                      if (!lastEntry || lastEntry.endTime) return task;
+                    const lastEntry = task.timeTracking[task.timeTracking.length - 1];
+                    if (!lastEntry || lastEntry.endTime) return task;
 
-                      const duration = Math.floor(
-                        (new Date(now).getTime() - new Date(lastEntry.startTime).getTime()) / 1000
-                      );
+                    const duration = Math.floor(
+                      (new Date(now).getTime() - new Date(lastEntry.startTime).getTime()) / 1000
+                    );
 
-                      const updatedTracking = task.timeTracking.map((entry, idx) =>
-                        idx === task.timeTracking.length - 1
-                          ? { ...entry, endTime: now, duration }
-                          : entry
-                      );
+                    const updatedTracking = task.timeTracking.map((entry, idx) =>
+                      idx === task.timeTracking.length - 1
+                        ? { ...entry, endTime: now, duration }
+                        : entry
+                    );
 
-                      const totalTimeSpent = updatedTracking.reduce(
-                        (sum, entry) => sum + entry.duration,
-                        0
-                      );
+                    const totalTimeSpent = updatedTracking.reduce(
+                      (sum, entry) => sum + entry.duration,
+                      0
+                    );
 
-                      return {
-                        ...task,
-                        timeTracking: updatedTracking,
-                        totalTimeSpent,
-                      };
-                    }),
-                  }
+                    return {
+                      ...task,
+                      timeTracking: updatedTracking,
+                      totalTimeSpent,
+                    };
+                  }),
+                }
                 : col
             ),
           },
@@ -814,13 +830,13 @@ export const useStore = create<AppState>((set, get) => {
             columns: state.data.kanban.columns.map(col =>
               col.id === columnId
                 ? {
-                    ...col,
-                    tasks: col.tasks.map(task =>
-                      task.id === taskId
-                        ? { ...task, comments: [...task.comments, comment] }
-                        : task
-                    ),
-                  }
+                  ...col,
+                  tasks: col.tasks.map(task =>
+                    task.id === taskId
+                      ? { ...task, comments: [...task.comments, comment] }
+                      : task
+                  ),
+                }
                 : col
             ),
           },
@@ -839,13 +855,13 @@ export const useStore = create<AppState>((set, get) => {
             columns: state.data.kanban.columns.map(col =>
               col.id === columnId
                 ? {
-                    ...col,
-                    tasks: col.tasks.map(task =>
-                      task.id === taskId
-                        ? { ...task, comments: task.comments.filter(c => c.id !== commentId) }
-                        : task
-                    ),
-                  }
+                  ...col,
+                  tasks: col.tasks.map(task =>
+                    task.id === taskId
+                      ? { ...task, comments: task.comments.filter(c => c.id !== commentId) }
+                      : task
+                  ),
+                }
                 : col
             ),
           },
@@ -896,11 +912,11 @@ export const useStore = create<AppState>((set, get) => {
 
             const newVersions = updates.content !== undefined && updates.content !== note.content
               ? [...note.versions, {
-                  id: generateId(),
-                  timestamp: now,
-                  action: 'Content updated',
-                  content: note.content,
-                }]
+                id: generateId(),
+                timestamp: now,
+                action: 'Content updated',
+                content: note.content,
+              }]
               : note.versions;
 
             return {
@@ -970,11 +986,11 @@ export const useStore = create<AppState>((set, get) => {
 
             const newVersions = updates.code !== undefined && updates.code !== script.code
               ? [...script.versions, {
-                  id: generateId(),
-                  timestamp: now,
-                  action: 'Code updated',
-                  code: script.code,
-                }]
+                id: generateId(),
+                timestamp: now,
+                action: 'Code updated',
+                code: script.code,
+              }]
               : script.versions;
 
             return {
