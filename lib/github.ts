@@ -157,7 +157,7 @@ class GitHubAPI {
             console.log(`[GitHub] File exists, SHA: ${sha}`);
           } catch (e: any) {
             // File doesn't exist yet, that's ok
-            if (!e.message.includes('404')) {
+            if (!e.message.includes('404') && !e.message.includes('Not Found')) {
               console.error('[GitHub] Error checking file (not 404):', e.message);
               throw e;
             }
