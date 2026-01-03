@@ -767,14 +767,14 @@ function KanbanBoard() {
             <Icons.Calendar /> {calendarView ? 'Board' : 'Calendar'} View
           </button>
 
-          <button
-            // onClick={() => setShowArchived(!showArchived)}
-            className={`hidden px-3 py-2 text-sm rounded-lg transition flex items-center gap-2 ${
+          {/* <button
+            onClick={() => setShowArchived(!showArchived)}
+            className={`px-3 py-2 text-sm rounded-lg transition flex items-center gap-2 ${
               showArchived ? 'bg-indigo-600 hover:bg-indigo-700' : 'bg-gray-700 hover:bg-gray-600'
             }`}
           >
             <Icons.Archive /> {showArchived ? 'Hide' : 'Show'} Archive
-          </button>
+          </button> */}
         </div>
 
         {/* Calendar View or Kanban Columns */}
@@ -1175,12 +1175,12 @@ function TaskModal({ task, columnId, onClose }: { task: Task; columnId: string; 
                   <Icons.Play /> Start Timer
                 </button>
               )}
-              <button
-                // onClick={handleArchive}
-                className="hidden bg-yellow-600 hover:bg-yellow-700 px-4 py-2 rounded-lg transition text-sm flex items-center gap-2"
+              {/* <button
+                onClick={handleArchive}
+                className="bg-yellow-600 hover:bg-yellow-700 px-4 py-2 rounded-lg transition text-sm flex items-center gap-2"
               >
                 <Icons.Archive /> Archive
-              </button>
+              </button> */}
             </div>
           </div>
 
