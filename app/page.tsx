@@ -8,6 +8,7 @@ import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { format } from 'date-fns';
 import { useStore, Task, Note, Script } from '@/lib/store';
+import { useModalPrompt } from '@/components/ModalPromptProvider';
 
 // Icons
 const Icons = {
@@ -587,6 +588,7 @@ function KanbanBoard() {
   const [filterLabel, setFilterLabel] = useState<string>('all');
   const [editingColumn, setEditingColumn] = useState<string | null>(null);
   const [columnTitle, setColumnTitle] = useState('');
+  const { openModal } = useModalPrompt();
 
   const handleDragStart = (e: React.DragEvent, taskId: string, columnId: string) => {
     setDraggedTask({ taskId, columnId });
@@ -629,9 +631,14 @@ function KanbanBoard() {
     setDraggedTask(null);
   };
 
-  const handleAddColumn = () => {
-    const title = prompt('Column title:');
-    if (title) addColumn(title);
+  const handleAddColumn = async () => {
+    const title = await openModal({
+      title: 'Add column:',
+      inputs: [
+        { name: 'column_name:', label: 'Column name:' }
+      ]
+    })
+    if (title) addColumn(title.column_name);
   };
 
   const handleDeleteColumn = (columnId: string, columnTitle: string, taskCount: number) => {
@@ -659,9 +666,13 @@ function KanbanBoard() {
     setEditingColumn(null);
   };
 
-  const handleAddTask = (columnId: string) => {
-    const title = prompt('Task title:');
-    if (title) addTask(columnId, title);
+  const handleAddTask = async (columnId: string) => {
+    const task = await openModal({
+      title: "Add task",
+      inputs: [{name:'task_title', label: 'Task title:'}]
+    });
+
+    if (task) addTask(columnId, task.task_title);
   };
 
   // Get all unique labels
@@ -1411,10 +1422,14 @@ function NotesManager() {
   const { data, selectedNote, selectNote, createNote, updateNote, deleteNote } = useStore();
   const note = data.notes.find(n => n.id === selectedNote);
   const [showVersions, setShowVersions] = useState(false);
+  const { openModal } = useModalPrompt();
 
-  const handleCreate = () => {
-    const name = prompt('Note name:');
-    if (name) createNote(name);
+  const handleCreate = async () => {
+    const name = await openModal({
+      title: 'Add note',
+      inputs: [{name: 'note_name',label: 'Note name'}]
+})
+    if (name) createNote(name.note_name);
   };
 
   const handleDelete = () => {
@@ -1571,15 +1586,19 @@ function ScriptsManager() {
   const { data, selectedScript, selectScript, createScript, updateScript, deleteScript } = useStore();
   const script = data.scripts.find(s => s.id === selectedScript);
   const [showVersions, setShowVersions] = useState(false);
+  const {openModal} = useModalPrompt();
 
   const languages = [
     'javascript', 'typescript', 'python', 'bash', 'sql',
     'html', 'css', 'json', 'markdown', 'yaml', 'go', 'rust'
   ];
 
-  const handleCreate = () => {
-    const name = prompt('Script name:');
-    if (name) createScript(name);
+  const handleCreate = async () => {
+    const script = await openModal({
+      title: 'Add script',
+      inputs: [{name: 'script_name',label: 'Script name'}]
+    });
+    if (script) createScript(script.script_name);
   };
 
   const handleDelete = () => {
