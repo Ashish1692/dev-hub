@@ -696,7 +696,6 @@ function GlobalSearchModal({ onClose }: { onClose: () => void }) {
         <div className="flex-1 overflow-y-auto p-2">
           {query.trim() === '' ? (
             <div className="text-center text-gray-500 py-8">
-              <Icons.Search />
               <p className="mt-2">Type to search across all your data</p>
               <p className="text-xs mt-1">Tasks • Notes • Scripts</p>
             </div>
