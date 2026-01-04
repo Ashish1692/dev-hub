@@ -1705,10 +1705,23 @@ function TaskModal({ task, columnId, onClose }: { task: Task; columnId: string; 
 
 // Notes Manager Component
 function NotesManager() {
-  const { data, selectedNote, selectNote, createNote, updateNote, deleteNote, showConfirm } = useStore();
+  const { data, selectedNote, selectNote, createNote, updateNote, deleteNote, selectedFolder, setSelectedFolder, showConfirm } = useStore();
   const note = data.notes.find(n => n.id === selectedNote);
   const [showVersions, setShowVersions] = useState(false);
   const { openModal } = useModalPrompt();
+  const folders = ['All', 'General', 'Work', 'Personal', 'Ideas', 'Archive'];
+
+  // Filter notes by selected folder
+  const filteredNotes = selectedFolder === 'All'
+    ? data.notes
+    : data.notes.filter(n => n.folder === selectedFolder);
+
+  // Sort: pinned first, then by updated date
+  const sortedNotes = [...filteredNotes].sort((a, b) => {
+    if (a.pinned && !b.pinned) return -1;
+    if (!a.pinned && b.pinned) return 1;
+    return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
+  });
 
   const handleCreate = async () => {
     const name = await openModal({
@@ -1746,6 +1759,21 @@ function NotesManager() {
   return (
     <div className="h-full flex">
       <div className="w-80 bg-gray-800 border-r border-gray-700 flex flex-col">
+        {/* Folder Tabs */}
+        <div className="p-2 border-b border-gray-700 flex flex-wrap gap-1">
+          {folders.map(folder => (
+            <button
+              key={folder}
+              onClick={() => setSelectedFolder(folder)}
+              className={`px-3 py-1 text-xs rounded-lg transition ${selectedFolder === folder
+                ? 'bg-indigo-600 text-white'
+                : 'bg-gray-700 hover:bg-gray-600 text-gray-300'
+                }`}
+            >
+              {folder}
+            </button>
+          ))}
+        </div>
         <div className="p-4 border-b border-gray-700">
           <button
             onClick={handleCreate}
@@ -1755,21 +1783,65 @@ function NotesManager() {
           </button>
         </div>
         <div className="flex-1 overflow-y-auto scrollbar-thin p-2 space-y-2">
-          {data.notes.length === 0 ? (
-            <p className="text-center text-gray-500 py-4">No notes yet</p>
+          {sortedNotes.length === 0 ? (
+            <p className="text-center text-gray-500 py-4">
+
+              {selectedFolder === 'All' ? 'No notes yet' : `No notes in ${selectedFolder}`}
+
+            </p>
           ) : (
-            data.notes.map(n => (
+            sortedNotes.map(n => (
               <div
                 key={n.id}
                 onClick={() => selectNote(n.id)}
-                className={`p-3 rounded-lg cursor-pointer transition ${selectedNote === n.id ? 'bg-indigo-600' : 'bg-gray-700 hover:bg-gray-600'
+                className={`p-3 rounded-lg cursor-pointer transition ${selectedNote === n.id ? 'bg-indigo-900' : 'bg-gray-700 hover:bg-gray-600'
                   }`}
               >
-                <h4 className="font-medium truncate">{n.name}</h4>
+                <div className="flex items-center justify-between mb-1">
+
+                  <h4 className="font-medium truncate flex-1">{n.name}</h4>
+
+                  <button
+
+                    onClick={(e) => {
+
+                      e.stopPropagation();
+
+                      updateNote(n.id, { pinned: !n.pinned });
+
+                    }}
+
+                    className={`p-1 rounded transition ${n.pinned ? 'text-yellow-400' : 'text-gray-500 hover:text-yellow-400'}`}
+
+                    title={n.pinned ? 'Unpin note' : 'Pin note'}
+
+                  >
+
+                    <Icons.Pin />
+
+                  </button>
+
+                </div>
                 <p className="text-sm text-gray-400 truncate">{n.description || 'No description'}</p>
-                <span className="text-xs text-gray-500">
-                  {format(new Date(n.updatedAt), 'PP')}
-                </span>
+                <div className="flex items-center gap-2 mt-1">
+
+                  <span className="text-xs text-gray-500">
+
+                    {format(new Date(n.updatedAt), 'PP')}
+
+                  </span>
+
+                  {n.folder && (
+
+                    <span className="text-xs bg-gray-600 px-2 py-0.5 rounded">
+
+                      {n.folder}
+
+                    </span>
+
+                  )}
+
+                </div>
               </div>
             ))
           )}
@@ -1794,7 +1866,31 @@ function NotesManager() {
                 placeholder="Description"
                 className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 focus:outline-none focus:border-indigo-500 text-sm"
               />
-              <div className="flex gap-3">
+
+
+              <div className="flex gap-3 items-center">
+                <button
+                  onClick={() => updateNote(note.id, { pinned: !note.pinned })}
+                  className={`flex items-center gap-1 text-xs transition ${note.pinned ? 'text-yellow-400' : 'text-gray-400 hover:text-yellow-400'
+                    }`}
+                >
+                  <Icons.Pin /> {note.pinned ? 'Pinned' : 'Pin'}
+                </button>
+                {/* Folder Selector */}
+                <div>
+                  <select
+                    title='Category'
+                    value={note.folder}
+                    onChange={e => updateNote(note.id, { folder: e.target.value })}
+                    className="cursor-pointer w-50 bg-gray-700 border border-gray-600 rounded-lg p-[2px] focus:outline-none focus:border-indigo-500 text-sm"
+                  >
+                    <option value="General">General</option>
+                    <option value="Work">Work</option>
+                    <option value="Personal">Personal</option>
+                    <option value="Ideas">Ideas</option>
+                    <option value="Archive">Archive</option>
+                  </select>
+                </div>
                 <button
                   onClick={() => setShowVersions(true)}
                   className="text-xs text-indigo-400 hover:text-indigo-300 flex items-center gap-1"
@@ -1946,7 +2042,7 @@ function ScriptsManager() {
               <div
                 key={s.id}
                 onClick={() => selectScript(s.id)}
-                className={`p-3 rounded-lg cursor-pointer transition ${selectedScript === s.id ? 'bg-indigo-600' : 'bg-gray-700 hover:bg-gray-600'
+                className={`p-3 rounded-lg cursor-pointer transition ${selectedScript === s.id ? 'bg-indigo-900' : 'bg-gray-700 hover:bg-gray-600'
                   }`}
               >
                 <h4 className="font-medium truncate">{s.name}</h4>
