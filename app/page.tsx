@@ -471,7 +471,6 @@ function WorkspaceModal({ onClose }: { onClose: () => void }) {
   const { workspaces, createWorkspace, deleteWorkspace, exportWorkspace, importWorkspace } = useStore();
   const [newName, setNewName] = useState('');
   const [error, setError] = useState('');
-  const [importing, setImporting] = useState(false);
 
   const handleCreate = async () => {
     if (!newName.trim()) return;
