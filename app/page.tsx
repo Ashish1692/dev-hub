@@ -1092,7 +1092,11 @@ function TaskModal({ task, columnId, onClose }: { task: Task; columnId: string; 
   };
 
   const handleDelete = () => {
-    if (confirm('Delete this task?')) {
+    const versionCount = task.versions.length;
+    const commentCount = task.comments.length;
+    const message = `Delete this task?\n\nThis will permanently delete:\n- ${versionCount} version${versionCount !== 1 ? 's' : ''}\n- ${commentCount} comment${commentCount !== 1 ? 's' : ''}\n- All task data\n\nThis cannot be undone.`;
+
+    if (confirm(message)) {
       deleteTask(columnId, task.id);
       onClose();
     }
@@ -1472,8 +1476,14 @@ function NotesManager() {
   };
 
   const handleDelete = () => {
-    if (note && confirm('Delete this note?')) {
-      deleteNote(note.id);
+    if (note) {
+      const versionCount = note.versions.length;
+      const message = `Delete note "${note.name}"?\n\nThis will permanently delete:\n- ${versionCount} version${versionCount !== 1 ? 's' : ''}\n- All note content\n\nThis cannot be undone.`;
+
+      if (confirm(message)) {
+        deleteNote(note.id);
+        selectNote(null);
+      }
     }
   };
 
@@ -1640,8 +1650,14 @@ function ScriptsManager() {
   };
 
   const handleDelete = () => {
-    if (script && confirm('Delete this script?')) {
-      deleteScript(script.id);
+    if (script) {
+      const versionCount = script.versions.length;
+      const message = `Delete script "${script.name}"?\n\nThis will permanently delete:\n- ${versionCount} version${versionCount !== 1 ? 's' : ''}\n- All script code\n\nThis cannot be undone.`;
+
+      if (confirm(message)) {
+        deleteScript(script.id);
+        selectScript(null);
+      }
     }
   };
 
