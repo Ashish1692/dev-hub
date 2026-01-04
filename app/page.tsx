@@ -1208,8 +1208,7 @@ function TaskModal({ task, columnId, onClose }: { task: Task; columnId: string; 
                 <div className="space-y-1 text-xs text-gray-400">
                   {task.timeTracking.slice(-3).reverse().map((entry, idx) => (
                     <div key={idx} className="flex justify-between">
-                      <span>{format(new Date(entry.startTime), 'PPp')}</span>
-                      <span>{entry.endTime ? formatTime(entry.duration) : 'In progress...'}</span>
+                      <span>{format(new Date(entry.startTime), 'PPp')} - {format(new Date(entry.endTime!),'PPp')}</span>
                     </div>
                   ))}
                 </div>
