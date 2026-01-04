@@ -480,7 +480,7 @@ function Header() {
 
 // Workspace Modal
 function WorkspaceModal({ onClose }: { onClose: () => void }) {
-  const { workspaces, createWorkspace, deleteWorkspace, exportWorkspace, importWorkspace } = useStore();
+  const { workspaces, createWorkspace, deleteWorkspace, exportWorkspace, importWorkspace, showConfirm } = useStore();
   const [newName, setNewName] = useState('');
   const [error, setError] = useState('');
 
@@ -496,13 +496,12 @@ function WorkspaceModal({ onClose }: { onClose: () => void }) {
   };
 
   const handleDelete = async (name: string) => {
-    if (confirm(`Delete workspace "${name}"?`)) {
-      try {
-        await deleteWorkspace(name);
-      } catch (err: any) {
-        setError(err.message);
-      }
-    }
+    const message = `Delete workspace "${name}"?`
+    showConfirm(
+      "Delete Workspace",
+      message,
+      () => deleteWorkspace(name)
+    );
   };
 
   return (
@@ -1297,7 +1296,7 @@ function KanbanBoard() {
 
 // Enhanced Task Modal with all features
 function TaskModal({ task, columnId, onClose }: { task: Task; columnId: string; onClose: () => void }) {
-  const { updateTask, deleteTask, addComment, deleteComment, archiveTask, startTimeTracking, stopTimeTracking } = useStore();
+  const { updateTask, deleteTask, addComment, deleteComment, archiveTask, startTimeTracking, stopTimeTracking, showConfirm } = useStore();
   const [title, setTitle] = useState(task.title);
   const [content, setContent] = useState(task.content);
   const [priority, setPriority] = useState<Task['priority']>(task.priority);
@@ -1336,10 +1335,14 @@ function TaskModal({ task, columnId, onClose }: { task: Task; columnId: string; 
     const commentCount = task.comments.length;
     const message = `Delete this task?\n\nThis will permanently delete:\n- ${versionCount} version${versionCount !== 1 ? 's' : ''}\n- ${commentCount} comment${commentCount !== 1 ? 's' : ''}\n- All task data\n\nThis cannot be undone.`;
 
-    if (confirm(message)) {
-      deleteTask(columnId, task.id);
-      onClose();
-    }
+    showConfirm(
+      "Delete Task",
+      message,
+      () => {
+        deleteTask(columnId, task.id);
+        onClose();
+      }
+    );
   };
 
   const handleArchive = () => {
@@ -1702,7 +1705,7 @@ function TaskModal({ task, columnId, onClose }: { task: Task; columnId: string; 
 
 // Notes Manager Component
 function NotesManager() {
-  const { data, selectedNote, selectNote, createNote, updateNote, deleteNote } = useStore();
+  const { data, selectedNote, selectNote, createNote, updateNote, deleteNote, showConfirm } = useStore();
   const note = data.notes.find(n => n.id === selectedNote);
   const [showVersions, setShowVersions] = useState(false);
   const { openModal } = useModalPrompt();
@@ -1720,10 +1723,14 @@ function NotesManager() {
       const versionCount = note.versions.length;
       const message = `Delete note "${note.name}"?\n\nThis will permanently delete:\n- ${versionCount} version${versionCount !== 1 ? 's' : ''}\n- All note content\n\nThis cannot be undone.`;
 
-      if (confirm(message)) {
-        deleteNote(note.id);
-        selectNote(null);
-      }
+      showConfirm(
+        "Delete Note",
+        message,
+        () => {
+          deleteNote(note.id);
+          selectNote(null);
+        }
+      );
     }
   };
 
@@ -1871,7 +1878,7 @@ function NotesManager() {
 
 // Scripts Manager Component
 function ScriptsManager() {
-  const { data, selectedScript, selectScript, createScript, updateScript, deleteScript } = useStore();
+  const { data, selectedScript, selectScript, createScript, updateScript, deleteScript, showConfirm } = useStore();
   const script = data.scripts.find(s => s.id === selectedScript);
   const [showVersions, setShowVersions] = useState(false);
   const { openModal } = useModalPrompt();
@@ -1894,10 +1901,14 @@ function ScriptsManager() {
       const versionCount = script.versions.length;
       const message = `Delete script "${script.name}"?\n\nThis will permanently delete:\n- ${versionCount} version${versionCount !== 1 ? 's' : ''}\n- All script code\n\nThis cannot be undone.`;
 
-      if (confirm(message)) {
-        deleteScript(script.id);
-        selectScript(null);
-      }
+      showConfirm(
+        "Delete Script",
+        message,
+        () => {
+          deleteScript(script.id);
+          selectScript(null);
+        }
+      );
     }
   };
 
