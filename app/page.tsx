@@ -89,7 +89,12 @@ const Icons = {
   ),
   Search: () => (
     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+    </svg>
+  ),
+  Command: () => (
+    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
     </svg>
   ),
   Filter: () => (
@@ -358,7 +363,7 @@ function Header() {
   const {
     currentTab, setCurrentTab, workspaces, currentWorkspace,
     switchWorkspace, syncNow, isSyncing, syncStatus, repo,
-    hasUnsavedChanges, clearSession, saveToGitHub
+    hasUnsavedChanges, clearSession, saveToGitHub,setGlobalSearchOpen
   } = useStore();
 
   const [showWorkspaceModal, setShowWorkspaceModal] = useState(false);
@@ -415,6 +420,13 @@ function Header() {
             <span className={`text-xs ${hasUnsavedChanges ? 'text-yellow-400' : 'text-gray-400'}`}>
               {syncStatus}
             </span>
+            <button
+              onClick={() => setGlobalSearchOpen(true)}
+              className="p-2 hover:bg-gray-700 rounded-lg transition"
+              title="Global Search (Ctrl+K)"
+            >
+              <Icons.Search />
+            </button>
             <button
               onClick={syncNow}
               disabled={isSyncing}
@@ -537,6 +549,200 @@ function WorkspaceModal({ onClose }: { onClose: () => void }) {
               </div>
             ))}
           </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+// Global Search Modal
+interface SearchResult {
+  type: 'task' | 'note' | 'script';
+  id: string;
+  title: string;
+  content: string;
+  label?: string;
+  location: string;
+  item: Task | Note | Script;
+  columnId?: string;
+}
+function GlobalSearchModal({ onClose }: { onClose: () => void }) {
+  const { data, setCurrentTab, selectNote, selectScript, currentWorkspace } = useStore();
+  const [query, setQuery] = useState('');
+  const [results, setResults] = useState<SearchResult[]>([]);
+
+  useEffect(() => {
+    if (!query.trim()) {
+      setResults([]);
+      return;
+    }
+    const searchQuery = query.toLowerCase();
+    const searchResults: SearchResult[] = [];
+    // Search tasks
+    data.kanban.columns.forEach(column => {
+      column.tasks.forEach(task => {
+        const matchTitle = task.title.toLowerCase().includes(searchQuery);
+        const matchContent = task.content.toLowerCase().includes(searchQuery);
+        const matchLabels = task.labels.some(l => l.toLowerCase().includes(searchQuery));
+        const matchComments = task.comments.some(c => c.text.toLowerCase().includes(searchQuery));
+        if (matchTitle || matchContent || matchLabels || matchComments) {
+          searchResults.push({
+            type: 'task',
+            id: task.id,
+            title: task.title,
+            content: task.content.substring(0, 100),
+            location: `Kanban > ${column.title}`,
+            item: task,
+            columnId: column.id,
+          });
+        }
+      });
+    });
+    // Search archived tasks
+    (data.kanban.archivedTasks || []).forEach(task => {
+      const matchTitle = task.title?.toLowerCase().includes(searchQuery);
+      const matchContent = task.content?.toLowerCase().includes(searchQuery);
+      const matchLabel = task.labels.toString()?.toLowerCase().includes(searchQuery);
+      if (matchTitle || matchContent) {
+        searchResults.push({
+          type: 'task',
+          id: task.id,
+          title: task.title,
+          content: task.content.substring(0, 100),
+          label: task.labels.toString(),
+          location: 'Kanban > Archived',
+          item: task,
+        });
+      }
+    });
+    // Search notes
+    data.notes.forEach(note => {
+      const matchName = note.name?.toLowerCase().includes(searchQuery);
+      const matchDesc = note.description?.toLowerCase().includes(searchQuery);
+      const matchContent = note.content?.toLowerCase().includes(searchQuery);
+      const matchTags = note.tags?.some(t => t.toLowerCase().includes(searchQuery));
+      if (matchName || matchDesc || matchContent || matchTags) {
+        searchResults.push({
+          type: 'note',
+          id: note.id,
+          title: note.name,
+          content: note.description || note.content.substring(0, 100),
+          location: `Notes > ${note.folder}`,
+          item: note,
+        });
+      }
+    });
+    // Search scripts
+    data.scripts.forEach(script => {
+      const matchName = script.name?.toLowerCase().includes(searchQuery);
+      const matchDesc = script.description?.toLowerCase().includes(searchQuery);
+      const matchCode = script.code?.toLowerCase().includes(searchQuery);
+      if (matchName || matchDesc || matchCode) {
+        searchResults.push({
+          type: 'script',
+          id: script.id,
+          title: script.name,
+          content: script.description || script.code.substring(0, 100),
+          location: `Scripts > ${script.language}`,
+          item: script,
+        });
+      }
+    });
+    setResults(searchResults);
+  }, [query, data]);
+  const handleSelectResult = (result: SearchResult) => {
+    if (result.type === 'note') {
+      setCurrentTab('notes');
+      selectNote(result.id);
+    } else if (result.type === 'script') {
+      setCurrentTab('scripts');
+      selectScript(result.id);
+    } else if (result.type === 'task') {
+      setCurrentTab('kanban');
+      // Task will be visible in Kanban board
+    }
+    onClose();
+  };
+  const getResultIcon = (type: string) => {
+    switch (type) {
+      case 'task': return '✓';
+      case 'note': return '📝';
+      case 'script': return '💻';
+      default: return '•';
+    }
+  };
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={onClose}>
+      <div className="bg-gray-800 rounded-2xl w-full max-w-2xl max-h-[80vh] flex flex-col" onClick={e => e.stopPropagation()}>
+        <div className="p-4 border-b border-gray-700">
+          <div className="flex items-center gap-3">
+            <Icons.Search />
+            <input
+              type="text"
+              value={query}
+              onChange={e => setQuery(e.target.value)}
+              placeholder="Search tasks, notes, and scripts..."
+              className="flex-1 bg-transparent focus:outline-none text-lg"
+              autoFocus
+            />
+            <button onClick={onClose} className="p-1 hover:bg-gray-700 rounded-lg transition">
+              <Icons.Close />
+            </button>
+          </div>
+          <p className="text-xs text-gray-500 mt-2">
+            Workspace: {currentWorkspace} • {results.length} results
+          </p>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-2">
+          {query.trim() === '' ? (
+            <div className="text-center text-gray-500 py-8">
+              <Icons.Search />
+              <p className="mt-2">Type to search across all your data</p>
+              <p className="text-xs mt-1">Tasks • Notes • Scripts</p>
+            </div>
+          ) : results.length === 0 ? (
+            <div className="text-center text-gray-500 py-8">
+              <p>No results found for "{query}"</p>
+            </div>
+          ) : (
+            <div className="space-y-1">
+              {results.map(result => (
+                <button
+                  key={`${result.type}-${result.id}`}
+                  onClick={() => handleSelectResult(result)}
+                  className="w-full text-left p-3 rounded-lg hover:bg-gray-700 transition group"
+                >
+                  <div className="flex items-start gap-3">
+                    <span className="text-2xl">{getResultIcon(result.type)}</span>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <h4 className="font-medium truncate">{result.title}</h4>
+                        <span className={`text-xs px-2 py-0.5 rounded ${
+                          result.type === 'task' ? 'bg-blue-600' :
+                          result.type === 'note' ? 'bg-green-600' :
+                          'bg-purple-600'
+                        }`}>
+                          {result.type}
+                        </span>
+                      </div>
+                      <p className="text-sm text-gray-400 line-clamp-2 mb-1">
+                        {result.content || 'No content'}
+                      </p>
+                      <p className="text-xs text-gray-500">{result.location}</p>
+                    </div>
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+        <div className="p-3 border-t border-gray-700 text-xs text-gray-500 flex items-center justify-between">
+          <span>Press ESC to close</span>
+          <span className="flex items-center gap-2">
+            <kbd className="px-2 py-1 bg-gray-700 rounded">↑</kbd>
+            <kbd className="px-2 py-1 bg-gray-700 rounded">↓</kbd>
+            to navigate
+          </span>
         </div>
       </div>
     </div>
@@ -1841,13 +2047,29 @@ function ScriptsManager() {
 // Main App Component
 export default function Home() {
   const { data: session, status } = useSession();
-  const { isAuthenticated, repoSelected, currentTab, setSession } = useStore();
-
+  const { isAuthenticated, repoSelected, currentTab, setSession, globalSearchOpen, setGlobalSearchOpen } = useStore();
   useEffect(() => {
     if (session?.user && session?.accessToken) {
+      console.log('Setting session with token:', session.accessToken ? 'Token exists' : 'No token');
       setSession(session.user, session.accessToken);
     }
   }, [session, setSession]);
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ctrl/Cmd + K for global search
+      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+        e.preventDefault();
+        setGlobalSearchOpen(true);
+      }
+      // ESC to close search
+      if (e.key === 'Escape') {
+        setGlobalSearchOpen(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [setGlobalSearchOpen]);
 
   // Loading state
   if (status === 'loading') {
@@ -1877,6 +2099,8 @@ export default function Home() {
         {currentTab === 'notes' && <NotesManager />}
         {currentTab === 'scripts' && <ScriptsManager />}
       </main>
+            {/* Global Search Modal */}
+      {globalSearchOpen && <GlobalSearchModal onClose={() => setGlobalSearchOpen(false)} />}
     </div>
   );
 }
