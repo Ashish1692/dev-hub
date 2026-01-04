@@ -123,6 +123,12 @@ interface AppState {
   calendarView: boolean;
   selectedFolder: string;
 
+  // Confirmation Modal State
+  confirmModalOpen: boolean;
+  confirmModalTitle: string;
+  confirmModalMessage: string;
+  confirmModalOnConfirm: (() => void) | null;
+
   // Sync State
   isSyncing: boolean;
   syncStatus: string;
@@ -187,6 +193,10 @@ interface AppState {
   setGlobalSearchOpen: (open: boolean) => void;
   setSettingsOpen: (open: boolean) => void;
   updateSettings: (settings: Partial<AppSettings>) => void;
+
+  // Confirmation Modal
+  showConfirm: (title: string, message: string, onConfirm: () => void) => void;
+  hideConfirm: () => void;
 }
 
 const getDefaultData = (): WorkspaceData => ({
@@ -265,6 +275,10 @@ export const useStore = create<AppState>((set, get) => {
     settingsOpen: false,
     calendarView: false,
     selectedFolder: 'All',
+    confirmModalOpen: false,
+    confirmModalTitle: '',
+    confirmModalMessage: '',
+    confirmModalOnConfirm: null,
     isSyncing: false,
     syncStatus: '',
     lastSynced: null,
@@ -1063,6 +1077,25 @@ export const useStore = create<AppState>((set, get) => {
     setGlobalSearchOpen: (open) => set({ globalSearchOpen: open }),
     setSettingsOpen: (open) => set({ settingsOpen: open }),
 
+     // Confirmation Modal
+    showConfirm: (title: string, message: string, onConfirm: () => void) => {
+      set({
+        confirmModalOpen: true,
+        confirmModalTitle: title,
+        confirmModalMessage: message,
+        confirmModalOnConfirm: onConfirm,
+      });
+    },
+
+    hideConfirm: () => {
+      set({
+        confirmModalOpen: false,
+        confirmModalTitle: '',
+        confirmModalMessage: '',
+        confirmModalOnConfirm: null,
+      });
+    },
+    
     updateSettings: (settings) => {
       set(state => ({
         data: {
