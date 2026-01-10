@@ -1665,16 +1665,21 @@ function TaskModal({ task, columnId, onClose }: { task: Task; columnId: string; 
                 <div className="flex items-center justify-between p-2 border-b border-gray-700 bg-gray-800">
                   <div className="flex items-center gap-1">
                     <button
-                      onClick={() => setViewMode('editor')}
-                      className={`flex items-center gap-2 px-3 py-1.5 text-xs rounded-lg transition ${viewMode === 'editor' ? 'bg-indigo-600 text-white' : 'text-gray-400 hover:text-white hover:bg-gray-700'}`}
+                      onClick={() => setViewMode(viewMode === 'preview' ? 'editor' : 'preview')}
+                      className="flex items-center gap-2 px-3 py-1.5 text-xs rounded-lg transition bg-gray-900 text-gray-200 hover:bg-gray-800 border border-gray-600"
+                      title={viewMode === 'preview' ? "Switch to Editor (Ctrl+1 / Cmd+1)" : "Switch to Preview (Ctrl+2 / Cmd+2)"}
                     >
-                      <Icons.Edit /> Write
-                    </button>
-                    <button
-                      onClick={() => setViewMode('preview')}
-                      className={`flex items-center gap-2 px-3 py-1.5 text-xs rounded-lg transition ${viewMode === 'preview' ? 'bg-indigo-600 text-white' : 'text-gray-400 hover:text-white hover:bg-gray-700'}`}
-                    >
-                      <Icons.Eye /> Preview
+                      {viewMode === 'preview' ? (
+                        <>
+                          <Icons.Edit />
+                          <span>Edit</span>
+                        </>
+                      ) : (
+                        <>
+                          <Icons.Eye />
+                          <span>Preview</span>
+                        </>
+                      )}
                     </button>
                   </div>
                   <div className="flex items-center gap-2">
@@ -2225,24 +2230,21 @@ function NotesManager() {
 
                 <div className="flex items-center gap-2">
                   <button
-                    onClick={() => setViewMode('editor')}
-                    className={`flex items-center gap-2 px-3 py-1.5 text-xs rounded-lg transition ${viewMode === 'editor'
-                      ? 'bg-indigo-600 text-white'
-                      : 'bg-gray-700 text-gray-400 hover:bg-gray-600 hover:text-gray-300'
-                      }`}
-                    title="Editor (Ctrl+1 / Cmd+1)"
+                    onClick={() => setViewMode(viewMode === 'preview' ? 'editor' : 'preview')}
+                    className="flex items-center gap-2 px-3 py-1.5 text-xs rounded-lg transition bg-gray-700 text-gray-200 hover:bg-gray-900 border border-gray-600"
+                    title={viewMode === 'preview' ? "Switch to Editor (Ctrl+1 / Cmd+1)" : "Switch to Preview (Ctrl+2 / Cmd+2)"}
                   >
-                    <Icons.Edit />
-                  </button>
-                  <button
-                    onClick={() => setViewMode('preview')}
-                    className={`flex items-center gap-2 px-3 py-1.5 text-xs rounded-lg transition ${viewMode === 'preview'
-                      ? 'bg-indigo-600 text-white'
-                      : 'bg-gray-700 text-gray-400 hover:bg-gray-600 hover:text-gray-300'
-                      }`}
-                    title="Preview (Ctrl+2 / Cmd+2)"
-                  >
-                    <Icons.Eye />
+                    {viewMode === 'preview' ? (
+                      <>
+                        <Icons.Edit />
+                        <span>Edit</span>
+                      </>
+                    ) : (
+                      <>
+                        <Icons.Eye />
+                        <span>Preview</span>
+                      </>
+                    )}
                   </button>
                 </div>
 
@@ -2501,24 +2503,21 @@ function ScriptsManager() {
                 </button>
                 <div className="flex items-center gap-x-2">
                   <button
-                    onClick={() => setViewMode('editor')}
-                    className={`flex items-center gap-2 px-3 py-1.5 text-xs rounded-lg transition ${viewMode === 'editor'
-                      ? 'bg-indigo-600 text-white'
-                      : 'bg-gray-700 text-gray-400 hover:bg-gray-600 hover:text-gray-300'
-                      }`}
-                    title="Editor (Ctrl+1 / Cmd+1)"
+                    onClick={() => setViewMode(viewMode == 'preview' ? 'editor' : 'preview')}
+                    className="flex items-center gap-2 px-3 py-1.5 text-xs rounded-lg transition bg-gray-700 text-gray-200 hover:bg-gray-900 border border-gray-600"
+                    title={viewMode == 'preview' ? "Switch to Editor (Ctrl+1 / Cmd+1)" : "Switch to Preview (Ctrl+2 / Cmd+2)"}
                   >
-                    <Icons.Edit />
-                  </button>
-                  <button
-                    onClick={() => setViewMode('preview')}
-                    className={`flex items-center gap-2 px-3 py-1.5 text-xs rounded-lg transition ${viewMode === 'preview'
-                      ? 'bg-indigo-600 text-white'
-                      : 'bg-gray-700 text-gray-400 hover:bg-gray-600 hover:text-gray-300'
-                      }`}
-                    title="Preview (Ctrl+2 / Cmd+2)"
-                  >
-                    <Icons.Eye />
+                    {viewMode == 'preview' ? (
+                      <>
+                        <Icons.Edit />
+                        <span>Edit</span>
+                      </>
+                    ) : (
+                      <>
+                        <Icons.Eye />
+                        <span>Preview</span>
+                      </>
+                    )}
                   </button>
                 </div>
                 <button
