@@ -195,3 +195,13 @@ body {
       #475569,
       #334155);
 }
+
+pre {
+  max-width: 100% !important;
+  overflow-x: auto !important;
+}
+
+pre code {
+  white-space: pre-wrap !important;
+  overflow-wrap: anywhere !important;
+}

@@ -67,9 +67,26 @@ const Icons = {
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
     </svg>
   ),
+  Settings: () => (
+    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+    </svg>
+  ),
+  ChevronDown: () => (
+    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+    </svg>
+  ),
   Edit: () => (
     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+    </svg>
+  ),
+  Eye: () => (
+    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
     </svg>
   ),
   Calendar: () => (
@@ -402,16 +419,52 @@ function Header() {
   const {
     currentTab, setCurrentTab, workspaces, currentWorkspace,
     switchWorkspace, syncNow, isSyncing, syncStatus, repo,
-    hasUnsavedChanges, clearSession, saveToGitHub, setGlobalSearchOpen
+    hasUnsavedChanges, clearSession, saveToGitHub, setGlobalSearchOpen,
+    createWorkspace
   } = useStore();
 
   const [showWorkspaceModal, setShowWorkspaceModal] = useState(false);
   const [showImportExportModal, setShowImportExportModalModal] = useState(false);
+  const [workspaceDropdownOpen, setWorkspaceDropdownOpen] = useState(false);
+  const { openModal } = useModalPrompt();
 
   const handleSignOut = () => {
     clearSession();
     signOut();
   };
+
+  const handleCreateWorkspace = async () => {
+    const result = await openModal({
+      title: 'Create New Workspace',
+      inputs: [{ name: 'workspace_name', label: 'Workspace name' }]
+    });
+    if (result && result.workspace_name) {
+      try {
+        await createWorkspace(result.workspace_name);
+        setWorkspaceDropdownOpen(false);
+      } catch (err) {
+        console.error('Failed to create workspace:', err);
+      }
+    }
+  };
+
+  const handleWorkspaceSwitch = async (workspaceName: string) => {
+    await switchWorkspace(workspaceName);
+    setWorkspaceDropdownOpen(false);
+  };
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      if (workspaceDropdownOpen && !target.closest('.workspace-dropdown-container')) {
+        setWorkspaceDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [workspaceDropdownOpen]);
+
   const tabs = ['kanban', 'notes', 'scripts'] as const;
 
   return (
@@ -420,23 +473,66 @@ function Header() {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
             <h1 className="text-xl font-bold text-indigo-400">DevHub</h1>
-            <div className="flex items-center gap-2">
-              <select
-                value={currentWorkspace}
-                onChange={e => switchWorkspace(e.target.value)}
-                className="bg-gray-700 border border-gray-600 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:border-indigo-500"
-              >
-                {workspaces.map(w => (
-                  <option key={w} value={w}>{w}</option>
-                ))}
-              </select>
+            <div className="relative workspace-dropdown-container">
               <button
-                onClick={() => setShowWorkspaceModal(true)}
-                className="p-1.5 hover:bg-gray-700 rounded-lg transition"
-                title="Manage Workspaces"
+                onClick={() => setWorkspaceDropdownOpen(!workspaceDropdownOpen)}
+                className="flex items-center gap-2 text-sm text-gray-300 hover:bg-gray-700 px-3 py-1.5 rounded-lg transition-colors cursor-pointer border border-gray-600"
               >
-                <Icons.Plus />
+                <Icons.Folder />
+                <span>{currentWorkspace}</span>
+                <Icons.ChevronDown />
               </button>
+              {workspaceDropdownOpen && (
+                <div className="absolute top-full left-0 mt-1 bg-gray-800 border border-gray-600 rounded-lg shadow-xl z-50 min-w-[400px]">
+                  <div className="p-2 border-b border-gray-700 flex items-center justify-between">
+                    <p className="text-xs text-gray-400 font-medium px-2 py-1">WORKSPACES</p>
+
+                    <div className="flex">
+                      <button
+                        onClick={handleCreateWorkspace}
+                        className="w-full flex items-center gap-2 px-2 py-2 text-sm text-indigo-400 hover:bg-indigo-900/30 rounded-lg transition-colors"
+                        title="Create New Workspace"
+                      >
+                        <Icons.Plus />
+                      </button>
+                      <button
+                        onClick={() => {
+                          setShowWorkspaceModal(true);
+                          setWorkspaceDropdownOpen(false);
+                        }}
+                        className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-400 hover:bg-gray-700 rounded-lg transition-colors"
+                        title="Manage Workspaces"
+                      >
+                        <Icons.Settings />
+                      </button>
+                    </div>
+
+                  </div>
+                  <div className="max-h-48 overflow-y-auto p-1">
+                    {workspaces.map(w => (
+                      <button
+                        key={w}
+                        onClick={() => handleWorkspaceSwitch(w)}
+                        className={`w-full flex items-center gap-2 px-3 py-2 text-sm my-1 transition-colors ${w === currentWorkspace
+                            ? 'bg-indigo-900 text-white'
+                            : 'text-gray-300 hover:bg-gray-700'
+                          }`}
+                      >
+                        <Icons.Folder />
+                        <div className="flex-1 text-left">
+                          <div className="font-medium">{w}</div>
+                          <div className="text-xs text-gray-400">{repo + '/' + w + '.json'}</div>
+                        </div>
+                        {w === currentWorkspace && (
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                          </svg>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
             <div className="relative flex bg-gray-700/60 rounded-lg p-1 w-fit">
               {tabs.map(tab => (
@@ -1333,17 +1429,625 @@ function KanbanBoard() {
 }
 
 // Enhanced Task Modal with all features
+// function TaskModal({ task, columnId, onClose }: { task: Task; columnId: string; onClose: () => void }) {
+//   const { updateTask, deleteTask, addComment, deleteComment, archiveTask, startTimeTracking, stopTimeTracking, showConfirm } = useStore();
+//   const [title, setTitle] = useState(task.title);
+//   const [content, setContent] = useState(task.content);
+//   const [priority, setPriority] = useState<Task['priority']>(task.priority);
+//   const [dueDate, setDueDate] = useState(task.dueDate || '');
+//   const [labels, setLabels] = useState<string[]>(task.labels);
+//   const [assignees, setAssignees] = useState<string[]>(task.assignees);
+//   const [newLabel, setNewLabel] = useState('');
+//   const [newAssignee, setNewAssignee] = useState('');
+//   const [newComment, setNewComment] = useState('');
+//   const [showVersions, setShowVersions] = useState(false);
+//   const [compareVersionA, setCompareVersionA] = useState<string | null>(null);
+//   const [compareVersionB, setCompareVersionB] = useState<string | null>(null);
+//   const [showComparison, setShowComparison] = useState(false);
+
+//   const activeTimeEntry = task.timeTracking.find(entry => !entry.endTime);
+
+//   const formatTime = (seconds: number) => {
+//     const hours = Math.floor(seconds / 3600);
+//     const minutes = Math.floor((seconds % 3600) / 60);
+//     const secs = seconds % 60;
+//     if (hours > 0) return `${hours}h ${minutes}m ${secs}s`;
+//     if (minutes > 0) return `${minutes}m ${secs}s`;
+//     return `${secs}s`;
+//   };
+
+//   const handleSave = () => {
+//     updateTask(columnId, task.id, {
+//       title,
+//       content,
+//       priority,
+//       dueDate: dueDate || null,
+//       labels,
+//       assignees
+//     });
+//   };
+
+//   const handleDelete = () => {
+//     const versionCount = task.versions.length;
+//     const commentCount = task.comments.length;
+//     const message = `Delete this task?\n\nThis will permanently delete:\n- ${versionCount} version${versionCount !== 1 ? 's' : ''}\n- ${commentCount} comment${commentCount !== 1 ? 's' : ''}\n- All task data\n\nThis cannot be undone.`;
+
+//     showConfirm(
+//       "Delete Task",
+//       message,
+//       () => {
+//         deleteTask(columnId, task.id);
+//         onClose();
+//       }
+//     );
+//   };
+
+//   const handleArchive = () => {
+//     archiveTask(columnId, task.id);
+//     onClose();
+//   };
+
+//   const handleAddLabel = () => {
+//     if (newLabel.trim() && !labels.includes(newLabel.trim())) {
+//       const updated = [...labels, newLabel.trim()];
+//       setLabels(updated);
+//       updateTask(columnId, task.id, { labels: updated });
+//       setNewLabel('');
+//     }
+//   };
+
+//   const handleRemoveLabel = (label: string) => {
+//     const updated = labels.filter(l => l !== label);
+//     setLabels(updated);
+//     updateTask(columnId, task.id, { labels: updated });
+//   };
+
+//   const handleAddAssignee = () => {
+//     if (newAssignee.trim() && !assignees.includes(newAssignee.trim())) {
+//       const updated = [...assignees, newAssignee.trim()];
+//       setAssignees(updated);
+//       updateTask(columnId, task.id, { assignees: updated });
+//       setNewAssignee('');
+//     }
+//   };
+
+//   const handleRemoveAssignee = (assignee: string) => {
+//     const updated = assignees.filter(a => a !== assignee);
+//     setAssignees(updated);
+//     updateTask(columnId, task.id, { assignees: updated });
+//   };
+
+//   const handleAddComment = () => {
+//     if (newComment.trim()) {
+//       addComment(columnId, task.id, newComment.trim());
+//       setNewComment('');
+//     }
+//   };
+
+//   type TaskVersion = Task['versions'][0];
+
+//   const handleRestoreVersion = (version: TaskVersion) => {
+//     setContent(version.content);
+//     updateTask(columnId, task.id, { content: version.content });
+//     setShowVersions(false);
+//   };
+
+//   const getLabelColor = (label: string) => {
+//     const hash = label.split('').reduce((acc, char) => char.charCodeAt(0) + acc, 0);
+//     const colors = [
+//       'bg-blue-500', 'bg-purple-500', 'bg-pink-500', 'bg-indigo-500',
+//       'bg-teal-500', 'bg-orange-500', 'bg-cyan-500', 'bg-emerald-500'
+//     ];
+//     return colors[hash % colors.length];
+//   };
+
+//   return (
+//     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={onClose}>
+//       <div
+//         className="bg-gray-800 rounded-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col relative"
+//         onClick={e => e.stopPropagation()}
+//       >
+//         <div className="p-4 border-b border-gray-700 flex items-center justify-between">
+//           <input
+//             type="text"
+//             value={title}
+//             onChange={e => setTitle(e.target.value)}
+//             onBlur={handleSave}
+//             className="text-lg font-semibold bg-transparent focus:outline-none focus:bg-gray-700 px-2 py-1 rounded flex-1"
+//           />
+//           <button onClick={onClose} className="p-1 hover:bg-gray-700 rounded-lg transition ml-2">
+//             <Icons.Close />
+//           </button>
+//         </div>
+
+//         <div className="flex-1 overflow-y-auto p-4 space-y-4">
+//           {/* Priority, Due Date, Archive */}
+//           <div className="flex gap-3 flex-wrap">
+//             <div className="flex-1 min-w-[200px]">
+//               <label className="block text-sm font-medium mb-1">Priority</label>
+//               <select
+//                 value={priority || ''}
+//                 onChange={e => {
+//                   const val = e.target.value as Task['priority'];
+//                   setPriority(val || null);
+//                   updateTask(columnId, task.id, { priority: val || null });
+//                 }}
+//                 className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 focus:outline-none focus:border-indigo-500"
+//               >
+//                 <option value="">No Priority</option>
+//                 <option value="low">Low</option>
+//                 <option value="medium">Medium</option>
+//                 <option value="high">High</option>
+//               </select>
+//             </div>
+
+//             <div className="flex-1 min-w-[200px]">
+//               <label className="block text-sm font-medium mb-1">Due Date</label>
+//               <input
+//                 type="date"
+//                 value={dueDate}
+//                 onChange={e => {
+//                   setDueDate(e.target.value);
+//                   updateTask(columnId, task.id, { dueDate: e.target.value || null });
+//                 }}
+//                 className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 focus:outline-none focus:border-indigo-500"
+//               />
+//             </div>
+
+//             <div className="flex items-end gap-2">
+//               {activeTimeEntry ? (
+//                 <button
+//                   onClick={() => stopTimeTracking(columnId, task.id)}
+//                   className="bg-red-600 hover:bg-red-700 px-4 py-2 rounded-lg transition text-sm flex items-center gap-2"
+//                 >
+//                   <Icons.Stop /> Stop Timer
+//                 </button>
+//               ) : (
+//                 <button
+//                   onClick={() => startTimeTracking(columnId, task.id)}
+//                   className="bg-green-600 hover:bg-green-700 px-4 py-2 rounded-lg transition text-sm flex items-center gap-2"
+//                 >
+//                   <Icons.Play /> Start Timer
+//                 </button>
+//               )}
+//               {/* <button
+//                 onClick={handleArchive}
+//                 className="bg-yellow-600 hover:bg-yellow-700 px-4 py-2 rounded-lg transition text-sm flex items-center gap-2"
+//               >
+//                 <Icons.Archive /> Archive
+//               </button> */}
+//             </div>
+//           </div>
+
+//           {/* Time Tracking Display */}
+//           {task.totalTimeSpent > 0 && (
+//             <div className="bg-gray-700 p-3 rounded-lg">
+//               <h4 className="text-sm font-medium mb-2 flex items-center gap-2">
+//                 <Icons.Clock /> Time Tracking
+//               </h4>
+//               <div className="text-2xl font-bold text-indigo-400 mb-2">
+//                 {formatTime(task.totalTimeSpent)}
+//               </div>
+//               {task.timeTracking.length > 0 && (
+//                 <div className="space-y-1 text-xs text-gray-400">
+//                   {task.timeTracking.slice(-3).reverse().map((entry, idx) => (
+//                     <div key={idx} className="flex justify-between">
+//                       <span>{format(new Date(entry.startTime), 'PPp')} - {format(new Date(entry.endTime!), 'PPp')}</span>
+//                     </div>
+//                   ))}
+//                 </div>
+//               )}
+//             </div>
+//           )}
+
+//           {/* Labels */}
+//           <div>
+//             <label className="block text-sm font-medium mb-2">Labels</label>
+//             <div className="flex gap-2 flex-wrap mb-2">
+//               {labels.map(label => (
+//                 <span
+//                   key={label}
+//                   className={`${getLabelColor(label)} text-sm px-3 py-1 rounded-full text-white flex items-center gap-2`}
+//                 >
+//                   {label}
+//                   <button
+//                     onClick={() => handleRemoveLabel(label)}
+//                     className="hover:text-gray-200"
+//                   >
+//                     ×
+//                   </button>
+//                 </span>
+//               ))}
+//             </div>
+//             <div className="flex gap-2">
+//               <input
+//                 type="text"
+//                 value={newLabel}
+//                 onChange={e => setNewLabel(e.target.value)}
+//                 placeholder="Add label..."
+//                 className="flex-1 bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 focus:outline-none focus:border-indigo-500 text-sm"
+//                 onKeyDown={e => e.key === 'Enter' && handleAddLabel()}
+//               />
+//               <button
+//                 onClick={handleAddLabel}
+//                 className="bg-indigo-600 hover:bg-indigo-700 px-4 py-2 rounded-lg transition text-sm"
+//               >
+//                 Add
+//               </button>
+//             </div>
+//           </div>
+
+//           {/* Assignees */}
+//           <div>
+//             <label className="block text-sm font-medium mb-2">Assignees</label>
+//             <div className="flex gap-2 flex-wrap mb-2">
+//               {assignees.map(assignee => (
+//                 <span
+//                   key={assignee}
+//                   className="bg-purple-600 text-sm px-3 py-1 rounded-full text-white flex items-center gap-2"
+//                 >
+//                   {assignee}
+//                   <button
+//                     onClick={() => handleRemoveAssignee(assignee)}
+//                     className="hover:text-gray-200"
+//                   >
+//                     ×
+//                   </button>
+//                 </span>
+//               ))}
+//             </div>
+//             <div className="flex gap-2">
+//               <input
+//                 type="text"
+//                 value={newAssignee}
+//                 onChange={e => setNewAssignee(e.target.value)}
+//                 placeholder="Add assignee..."
+//                 className="flex-1 bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 focus:outline-none focus:border-indigo-500 text-sm"
+//                 onKeyDown={e => e.key === 'Enter' && handleAddAssignee()}
+//               />
+//               <button
+//                 onClick={handleAddAssignee}
+//                 className="bg-indigo-600 hover:bg-indigo-700 px-4 py-2 rounded-lg transition text-sm"
+//               >
+//                 Add
+//               </button>
+//             </div>
+//           </div>
+
+//           {/* Content */}
+//           <div>
+//             <div className="flex items-center justify-between mb-2">
+//               <label className="text-sm font-medium">Content (Markdown)</label>
+//               <button
+//                 onClick={() => setShowVersions(true)}
+//                 className="text-xs text-indigo-400 hover:text-indigo-300 flex items-center gap-1"
+//               >
+//                 <Icons.History /> Version History ({task.versions.length})
+//               </button>
+//             </div>
+//             <textarea
+//               value={content}
+//               onChange={e => setContent(e.target.value)}
+//               onBlur={handleSave}
+//               rows={6}
+//               className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 focus:outline-none focus:border-indigo-500 font-mono text-sm resize-none"
+//               placeholder="Write markdown content..."
+//             />
+//           </div>
+
+//           {/* Preview */}
+//           <div>
+//             <label className="block text-sm font-medium mb-2">Preview</label>
+//             <div className="markdown-preview bg-gray-700 p-4 rounded-lg min-h-[100px]">
+//               <ReactMarkdown remarkPlugins={[remarkGfm]}>
+//                 {content || '*No content*'}
+//               </ReactMarkdown>
+//             </div>
+//           </div>
+
+//           {/* Comments */}
+//           <div>
+//             <label className="block text-sm font-medium mb-2">Comments</label>
+//             <div className="space-y-2 mb-3">
+//               {task.comments.map(comment => (
+//                 <div key={comment.id} className="bg-gray-700 p-3 rounded-lg">
+//                   <div className="flex items-center justify-between mb-1">
+//                     <span className="text-xs text-gray-400">
+//                       {format(new Date(comment.timestamp), 'PPp')}
+//                     </span>
+//                     <button
+//                       onClick={() => deleteComment(columnId, task.id, comment.id)}
+//                       className="text-red-400 hover:text-red-300 text-xs"
+//                     >
+//                       Delete
+//                     </button>
+//                   </div>
+//                   <div className="markdown-preview text-sm">
+//                     <ReactMarkdown remarkPlugins={[remarkGfm]}>
+//                       {comment.text}
+//                     </ReactMarkdown>
+//                   </div>
+//                 </div>
+//               ))}
+//             </div>
+//             <div className="flex gap-2">
+//               <input
+//                 type="text"
+//                 value={newComment}
+//                 onChange={e => setNewComment(e.target.value)}
+//                 placeholder="Add a comment..."
+//                 className="flex-1 bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 focus:outline-none focus:border-indigo-500 text-sm"
+//                 onKeyDown={e => e.key === 'Enter' && handleAddComment()}
+//               />
+//               <button
+//                 onClick={handleAddComment}
+//                 className="bg-indigo-600 hover:bg-indigo-700 px-4 py-2 rounded-lg transition text-sm"
+//               >
+//                 Add
+//               </button>
+//             </div>
+//           </div>
+//         </div>
+
+//         <div className="p-4 border-t border-gray-700 flex justify-between">
+//           <button
+//             onClick={handleDelete}
+//             className="bg-red-600 hover:bg-red-700 px-4 py-2 rounded-lg transition text-sm"
+//           >
+//             Delete Task
+//           </button>
+//           <button
+//             onClick={onClose}
+//             className="bg-gray-600 hover:bg-gray-500 px-4 py-2 rounded-lg transition text-sm"
+//           >
+//             Close
+//           </button>
+//         </div>
+//         {showVersions && (
+//           <div className="absolute inset-0 bg-gray-900 flex flex-col rounded-2xl">
+//             <div className="p-4 border-b border-gray-700 flex items-center justify-between">
+//               <h3 className="text-lg font-semibold">Version History</h3>
+//               <button onClick={() => {
+//                 setShowVersions(false);
+//                 setShowComparison(false);
+//                 setCompareVersionA(null);
+//                 setCompareVersionB(null);
+//               }} className="p-1 hover:bg-gray-700 rounded-lg">
+//                 <Icons.Close />
+//               </button>
+//             </div>
+
+//             {/* Version Comparison Controls */}
+//             {!showComparison && task.versions.length > 1 && (
+//               <div className="px-4 py-2 border-b-2 border-gray-700">
+//                 <div className="grid grid-cols-3 gap-x-2 mb-1 items-end">
+//                   <div>
+//                     <label className="block text-xs text-gray-400 mb-1">Version A (Left)</label>
+//                     <select
+//                       value={compareVersionA || ''}
+//                       onChange={e => setCompareVersionA(e.target.value)}
+//                       className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-sm"
+//                     >
+//                       <option value="">Select version...</option>
+//                       {task.versions.map((v, idx) => (
+//                         <option key={v.id} value={v.id}>
+//                           {idx === 0 ? 'Latest' : `Version ${task.versions.length - idx}`} - {format(new Date(v.timestamp), 'PP')}
+//                         </option>
+//                       ))}
+//                     </select>
+//                   </div>
+//                   <div>
+//                     <label className="block text-xs text-gray-400 mb-1">Version B (Right)</label>
+//                     <select
+//                       value={compareVersionB || ''}
+//                       onChange={e => setCompareVersionB(e.target.value)}
+//                       className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-sm"
+//                     >
+//                       <option value="">Select version...</option>
+//                       {task.versions.map((v, idx) => (
+//                         <option key={v.id} value={v.id}>
+//                           {idx === 0 ? 'Latest' : `Version ${task.versions.length - idx}`} - {format(new Date(v.timestamp), 'PP')}
+//                         </option>
+//                       ))}
+//                     </select>
+//                   </div>
+//                 {/* </div> */}
+//                 <div className="flex gap-2">
+//                   <button
+//                     onClick={() => {
+//                       const temp = compareVersionA;
+//                       setCompareVersionA(compareVersionB);
+//                       setCompareVersionB(temp);
+//                     }}
+//                     disabled={!compareVersionA || !compareVersionB}
+//                     className="bg-gray-700 hover:bg-gray-600 disabled:opacity-50 px-4 py-2 rounded-lg text-sm"
+//                   >
+//                     ⇄
+//                   </button>
+//                   <button
+//                     onClick={() => {
+//                       if (compareVersionA && compareVersionB) setShowComparison(true);
+//                     }}
+//                     disabled={!compareVersionA || !compareVersionB}
+//                     className="flex-1 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed px-4 py-2 rounded-lg text-sm"
+//                   >
+//                     Compare
+//                   </button>
+//                   </div>
+//                 </div>
+//               </div>
+//             )}
+
+//             {/* Side-by-Side Comparison View */}
+//             {showComparison && compareVersionA && compareVersionB && (
+//               <div className="flex-1 overflow-y-auto p-4">
+//                 <div className="mb-4 flex items-center justify-between">
+//                   <h4 className="text-lg font-semibold">Comparing Versions</h4>
+//                   <button
+//                     onClick={() => {
+//                       setShowComparison(false);
+//                       setCompareVersionA(null);
+//                       setCompareVersionB(null);
+//                     }}
+//                     className="text-sm text-indigo-400 hover:text-indigo-300"
+//                   >
+//                     Close Comparison
+//                   </button>
+//                 </div>
+
+//                 {(() => {
+//                   const versionA = task.versions.find(v => v.id === compareVersionA);
+//                   const versionB = task.versions.find(v => v.id === compareVersionB);
+
+//                   const versionAIndex = task.versions.findIndex(
+//                     v => v.id === versionA?.id
+//                   );
+//                   const versionBIndex = task.versions.findIndex(
+//                     v => v.id === versionB?.id
+//                   );
+
+//                   if (!versionA || !versionB) return null;
+
+//                   const contentA = versionA.content || '';
+//                   const contentB = versionB.content || '';
+
+//                   const linesA = contentA.split('\n');
+//                   const linesB = contentB.split('\n');
+//                   const maxLines = Math.max(linesA.length, linesB.length);
+
+//                   return (
+//                     <div>
+//                       {/* Version Info */}
+//                       <div className="grid grid-cols-2 gap-4 mb-4">
+//                         <div className="bg-gray-800 p-3 rounded-lg h-fit">
+//                           <div className='flex items-center justify-between'>
+//                           <div className="text-sm font-medium mb-1">{versionAIndex === 0 ? 'Latest' : `Version ${task.versions.length - versionAIndex}`}</div>
+//                           <div className="text-xs text-gray-400">
+//                             {format(new Date(versionA.timestamp), 'PPp')}
+//                             </div>
+//                             </div>
+//                           <div className="text-xs text-gray-500 mt-1">{versionA.action}</div>
+//                         </div>
+//                         <div className="bg-gray-800 p-3 rounded-lg h-fit">
+//                           <div className='flex items-center justify-between'>
+//                             <div className="text-sm font-medium mb-1">{versionBIndex === 0 ? 'Latest' : `Version ${task.versions.length - versionBIndex}`}</div>
+//                             <div className="text-xs text-gray-400">
+//                               {format(new Date(versionB.timestamp), 'PPp')}
+//                             </div>
+//                           </div>
+//                           <div className="text-xs text-gray-500 mt-1">{versionB.action}</div>
+//                         </div>
+//                       </div>
+
+//                       {/* Side-by-Side Diff */}
+//                       <div className="grid grid-cols-2 gap-4">
+//                         <div className="bg-gray-800 p-4 rounded-lg">
+//                           <div className="text-xs text-gray-400 mb-2 flex items-center gap-2">
+//                             <span className="text-red-400">● Removed lines</span>
+//                           </div>
+//                           <div className="font-mono text-sm space-y-1 max-h-96 overflow-y-auto">
+//                             {linesA.map((line, idx) => {
+//                               const isRemoved = !linesB.includes(line);
+//                               return (
+//                                 <div
+//                                   key={idx}
+//                                   className={isRemoved ? 'bg-red-900/30 text-red-400 px-2 py-1' : 'text-gray-400 px-2 py-1'}
+//                                 >
+//                                   <span className="text-gray-600 mr-2">{idx + 1}</span>
+//                                   {line || ' '}
+//                                 </div>
+//                               );
+//                             })}
+//                           </div>
+//                         </div>
+//                         <div className="bg-gray-800 p-4 rounded-lg">
+//                           <div className="text-xs text-gray-400 mb-2 flex items-center gap-2">
+//                             <span className="text-green-400">● Added lines</span>
+//                           </div>
+//                           <div className="font-mono text-sm space-y-1 max-h-96 overflow-y-auto">
+//                             {linesB.map((line, idx) => {
+//                               const isAdded = !linesA.includes(line);
+//                               return (
+//                                 <div
+//                                   key={idx}
+//                                   className={isAdded ? 'bg-green-900/30 text-green-400 px-2 py-1' : 'text-gray-300 px-2 py-1'}
+//                                 >
+//                                   <span className="text-gray-600 mr-2">{idx + 1}</span>
+//                                   {line || ' '}
+//                                 </div>
+//                               );
+//                             })}
+//                           </div>
+//                         </div>
+//                       </div>
+//                     </div>
+//                   );
+//                 })()}
+//               </div>
+//             )}
+
+//             {/* Version List */}
+//             {!showComparison && (
+//               <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-gray-900 ">
+//                 {[...task.versions].reverse().map((version, index) => (
+//                   <div key={version.id} className="border border-gray-700 p-3 rounded-lg hover:border-indigo-500 transition-colors">
+//                     <div className="flex items-center justify-between mb-2">
+//                       <span className="text-sm font-medium text-gray-200">
+//                         {index === 0 ? 'Latest Version' : `Version ${task.versions.length - index}`}
+//                       </span>
+//                       <span className="text-xs text-gray-400">
+//                         {format(new Date(version.timestamp), 'PPp')}
+//                       </span>
+//                     </div>
+//                     <div className="text-sm mb-1">
+//                       <span className="font-medium text-gray-300">Action:</span> <span className="text-gray-400">{version.action}</span>
+//                     </div>
+//                     <div className="bg-gray-800 p-2 rounded text-sm text-gray-300 mb-2 max-h-32 overflow-y-auto">
+//                       {version.content || <em className="text-gray-500">Empty</em>}
+//                     </div>
+//                     {index > 0 && (
+//                       <button
+//                         onClick={() => handleRestoreVersion(version)}
+//                         className="flex items-center gap-2 text-sm text-indigo-400 hover:text-indigo-300 transition-colors"
+//                       ><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+//                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+//                 </svg>
+//                         Restore this version
+//                       </button>
+//                     )}
+//                   </div>
+//                 ))}
+//               </div>
+//             )}
+//           </div>
+//         )}
+//       </div>
+//     </div>
+//   );
+// }
+
+// Enhanced Task Modal with Tabbed Layout and Split View
 function TaskModal({ task, columnId, onClose }: { task: Task; columnId: string; onClose: () => void }) {
   const { updateTask, deleteTask, addComment, deleteComment, archiveTask, startTimeTracking, stopTimeTracking, showConfirm } = useStore();
+
+  // State
+  const [activeTab, setActiveTab] = useState<'main' | 'details'>('main');
+  const [viewMode, setViewMode] = useState<'editor' | 'preview'>('editor');
+
+  // Form State
   const [title, setTitle] = useState(task.title);
   const [content, setContent] = useState(task.content);
   const [priority, setPriority] = useState<Task['priority']>(task.priority);
   const [dueDate, setDueDate] = useState(task.dueDate || '');
   const [labels, setLabels] = useState<string[]>(task.labels);
   const [assignees, setAssignees] = useState<string[]>(task.assignees);
+
+  // Input State
   const [newLabel, setNewLabel] = useState('');
   const [newAssignee, setNewAssignee] = useState('');
   const [newComment, setNewComment] = useState('');
+
+  // Version History State
   const [showVersions, setShowVersions] = useState(false);
   const [compareVersionA, setCompareVersionA] = useState<string | null>(null);
   const [compareVersionB, setCompareVersionB] = useState<string | null>(null);
@@ -1376,19 +2080,14 @@ function TaskModal({ task, columnId, onClose }: { task: Task; columnId: string; 
     const commentCount = task.comments.length;
     const message = `Delete this task?\n\nThis will permanently delete:\n- ${versionCount} version${versionCount !== 1 ? 's' : ''}\n- ${commentCount} comment${commentCount !== 1 ? 's' : ''}\n- All task data\n\nThis cannot be undone.`;
 
-    showConfirm(
-      "Delete Task",
-      message,
-      () => {
-        deleteTask(columnId, task.id);
-        onClose();
-      }
-    );
+    showConfirm("Delete Task", message, () => {
+      deleteTask(columnId, task.id);
+      onClose();
+    });
   };
 
-  const handleArchive = () => {
-    archiveTask(columnId, task.id);
-    onClose();
+  const handleCopyContent = () => {
+    navigator.clipboard.writeText(content);
   };
 
   const handleAddLabel = () => {
@@ -1428,9 +2127,7 @@ function TaskModal({ task, columnId, onClose }: { task: Task; columnId: string; 
     }
   };
 
-  type TaskVersion = Task['versions'][0];
-
-  const handleRestoreVersion = (version: TaskVersion) => {
+  const handleRestoreVersion = (version: any) => {
     setContent(version.content);
     updateTask(columnId, task.id, { content: version.content });
     setShowVersions(false);
@@ -1438,279 +2135,323 @@ function TaskModal({ task, columnId, onClose }: { task: Task; columnId: string; 
 
   const getLabelColor = (label: string) => {
     const hash = label.split('').reduce((acc, char) => char.charCodeAt(0) + acc, 0);
-    const colors = [
-      'bg-blue-500', 'bg-purple-500', 'bg-pink-500', 'bg-indigo-500',
-      'bg-teal-500', 'bg-orange-500', 'bg-cyan-500', 'bg-emerald-500'
-    ];
+    const colors = ['bg-blue-500', 'bg-purple-500', 'bg-pink-500', 'bg-indigo-500', 'bg-teal-500', 'bg-orange-500', 'bg-cyan-500', 'bg-emerald-500'];
     return colors[hash % colors.length];
   };
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={onClose}>
       <div
-        className="bg-gray-800 rounded-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col relative"
+        // Changed size to 80vw and 80vh
+        className="bg-gray-800 rounded-2xl w-[85vw] h-[85vh] max-w-7xl overflow-hidden flex flex-col relative shadow-2xl"
         onClick={e => e.stopPropagation()}
       >
-        <div className="p-4 border-b border-gray-700 flex items-center justify-between">
+        {/* Header - Always visible */}
+        <div className="p-4 border-b border-gray-700 flex items-center justify-between bg-gray-800 shrink-0">
           <input
             type="text"
             value={title}
             onChange={e => setTitle(e.target.value)}
             onBlur={handleSave}
-            className="text-lg font-semibold bg-transparent focus:outline-none focus:bg-gray-700 px-2 py-1 rounded flex-1"
+            className="text-xl font-bold bg-transparent focus:outline-none focus:bg-gray-700 px-2 py-1 rounded flex-1 mr-4"
+            placeholder="Task Title"
           />
-          <button onClick={onClose} className="p-1 hover:bg-gray-700 rounded-lg transition ml-2">
-            <Icons.Close />
-          </button>
+          <div className="flex items-center gap-2">
+            {/* Tab Navigation */}
+            <div className="flex bg-gray-700 rounded-lg p-1 mr-4">
+              <button
+                onClick={() => setActiveTab('main')}
+                className={`px-4 py-1.5 text-sm rounded-md transition ${activeTab === 'main' ? 'bg-indigo-600 text-white shadow' : 'text-gray-300 hover:text-white'}`}
+              >
+                Main
+              </button>
+              <button
+                onClick={() => setActiveTab('details')}
+                className={`px-4 py-1.5 text-sm rounded-md transition ${activeTab === 'details' ? 'bg-indigo-600 text-white shadow' : 'text-gray-300 hover:text-white'}`}
+              >
+                Details & Comments
+              </button>
+            </div>
+            <button onClick={onClose} className="p-2 hover:bg-gray-700 rounded-lg transition text-gray-400 hover:text-white">
+              <Icons.Close />
+            </button>
+          </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-4 space-y-4">
-          {/* Priority, Due Date, Archive */}
-          <div className="flex gap-3 flex-wrap">
-            <div className="flex-1 min-w-[200px]">
-              <label className="block text-sm font-medium mb-1">Priority</label>
-              <select
-                value={priority || ''}
-                onChange={e => {
-                  const val = e.target.value as Task['priority'];
-                  setPriority(val || null);
-                  updateTask(columnId, task.id, { priority: val || null });
-                }}
-                className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 focus:outline-none focus:border-indigo-500"
-              >
-                <option value="">No Priority</option>
-                <option value="low">Low</option>
-                <option value="medium">Medium</option>
-                <option value="high">High</option>
-              </select>
-            </div>
+        {/* Tab Content Area */}
+        <div className="flex-1 overflow-hidden bg-gray-900/50">
 
-            <div className="flex-1 min-w-[200px]">
-              <label className="block text-sm font-medium mb-1">Due Date</label>
-              <input
-                type="date"
-                value={dueDate}
-                onChange={e => {
-                  setDueDate(e.target.value);
-                  updateTask(columnId, task.id, { dueDate: e.target.value || null });
-                }}
-                className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 focus:outline-none focus:border-indigo-500"
-              />
-            </div>
+          {/* TAB 1: MAIN (Important Fields & Content) */}
+          {activeTab === 'main' && (
+            <div className="flex h-full">
+              {/* Left Column (30%) - Important Fields */}
+              <div className="w-[30%] border-r border-gray-700 p-5 space-y-6 overflow-y-auto bg-gray-800/50">
 
-            <div className="flex items-end gap-2">
-              {activeTimeEntry ? (
-                <button
-                  onClick={() => stopTimeTracking(columnId, task.id)}
-                  className="bg-red-600 hover:bg-red-700 px-4 py-2 rounded-lg transition text-sm flex items-center gap-2"
-                >
-                  <Icons.Stop /> Stop Timer
-                </button>
-              ) : (
-                <button
-                  onClick={() => startTimeTracking(columnId, task.id)}
-                  className="bg-green-600 hover:bg-green-700 px-4 py-2 rounded-lg transition text-sm flex items-center gap-2"
-                >
-                  <Icons.Play /> Start Timer
-                </button>
-              )}
-              {/* <button
-                onClick={handleArchive}
-                className="bg-yellow-600 hover:bg-yellow-700 px-4 py-2 rounded-lg transition text-sm flex items-center gap-2"
-              >
-                <Icons.Archive /> Archive
-              </button> */}
-            </div>
-          </div>
-
-          {/* Time Tracking Display */}
-          {task.totalTimeSpent > 0 && (
-            <div className="bg-gray-700 p-3 rounded-lg">
-              <h4 className="text-sm font-medium mb-2 flex items-center gap-2">
-                <Icons.Clock /> Time Tracking
-              </h4>
-              <div className="text-2xl font-bold text-indigo-400 mb-2">
-                {formatTime(task.totalTimeSpent)}
-              </div>
-              {task.timeTracking.length > 0 && (
-                <div className="space-y-1 text-xs text-gray-400">
-                  {task.timeTracking.slice(-3).reverse().map((entry, idx) => (
-                    <div key={idx} className="flex justify-between">
-                      <span>{format(new Date(entry.startTime), 'PPp')} - {format(new Date(entry.endTime!), 'PPp')}</span>
-                    </div>
-                  ))}
+                {/* Priority */}
+                <div>
+                  <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Priority</label>
+                  <select
+                    value={priority || ''}
+                    onChange={e => {
+                      const val = e.target.value as Task['priority'];
+                      setPriority(val || null);
+                      updateTask(columnId, task.id, { priority: val || null });
+                    }}
+                    className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2.5 focus:outline-none focus:border-indigo-500 transition"
+                  >
+                    <option value="">No Priority</option>
+                    <option value="low">Low Priority</option>
+                    <option value="medium">Medium Priority</option>
+                    <option value="high">High Priority</option>
+                  </select>
                 </div>
-              )}
+
+                {/* Due Date */}
+                <div>
+                  <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Due Date</label>
+                  <input
+                    type="date"
+                    value={dueDate}
+                    onChange={e => {
+                      setDueDate(e.target.value);
+                      updateTask(columnId, task.id, { dueDate: e.target.value || null });
+                    }}
+                    className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2.5 focus:outline-none focus:border-indigo-500 transition"
+                  />
+                </div>
+
+                {/* Status/Column Info (Read only) */}
+                <div>
+                  <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Location</label>
+                  <div className="flex items-center gap-2 text-gray-300 bg-gray-700 px-3 py-2.5 rounded-lg">
+                    <Icons.Folder />
+                    <span className="text-sm">Column: <strong>{columnId}</strong></span>
+                  </div>
+                </div>
+
+                <div className="pt-4 border-t border-gray-700">
+                  <button
+                    onClick={handleDelete}
+                    className="w-full text-red-400 hover:text-red-300 hover:bg-red-900/20 px-4 py-2 rounded-lg transition text-sm flex items-center justify-center gap-2"
+                  >
+                    <Icons.Trash /> Delete Task
+                  </button>
+                </div>
+              </div>
+
+              {/* Right Column (70%) - Content Editor */}
+              <div className="w-[70%] flex flex-col h-full bg-gray-900">
+                {/* Editor Toolbar */}
+                <div className="flex items-center justify-between p-2 border-b border-gray-700 bg-gray-800">
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => setViewMode('editor')}
+                      className={`flex items-center gap-2 px-3 py-1.5 text-xs rounded-lg transition ${viewMode === 'editor' ? 'bg-indigo-600 text-white' : 'text-gray-400 hover:text-white hover:bg-gray-700'}`}
+                    >
+                      <Icons.Edit /> Write
+                    </button>
+                    <button
+                      onClick={() => setViewMode('preview')}
+                      className={`flex items-center gap-2 px-3 py-1.5 text-xs rounded-lg transition ${viewMode === 'preview' ? 'bg-indigo-600 text-white' : 'text-gray-400 hover:text-white hover:bg-gray-700'}`}
+                    >
+                      <Icons.Eye /> Preview
+                    </button>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={handleCopyContent}
+                      className="flex items-center gap-1 px-3 py-1.5 text-xs text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg transition"
+                      title="Copy markdown"
+                    >
+                      <Icons.Copy /> Copy
+                    </button>
+                    <button
+                      onClick={() => setShowVersions(true)}
+                      className="flex items-center gap-1 px-3 py-1.5 text-xs text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg transition"
+                    >
+                      <Icons.History /> History
+                    </button>
+                  </div>
+                </div>
+
+                {/* Editor Area */}
+                <div className="flex-1 overflow-hidden relative">
+                  {viewMode === 'editor' ? (
+                    <textarea
+                      value={content}
+                      onChange={e => setContent(e.target.value)}
+                      onBlur={handleSave}
+                      className="w-full h-full bg-transparent p-6 focus:outline-none font-mono text-sm resize-none text-gray-300 leading-relaxed"
+                      placeholder="# Task Description&#10;&#10;Add details here..."
+                      spellCheck={false}
+                    />
+                  ) : (
+                    <div className="w-full h-full p-6 overflow-y-auto markdown-preview prose prose-invert max-w-none">
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                        {content || '*No content*'}
+                      </ReactMarkdown>
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
           )}
 
-          {/* Labels */}
-          <div>
-            <label className="block text-sm font-medium mb-2">Labels</label>
-            <div className="flex gap-2 flex-wrap mb-2">
-              {labels.map(label => (
-                <span
-                  key={label}
-                  className={`${getLabelColor(label)} text-sm px-3 py-1 rounded-full text-white flex items-center gap-2`}
-                >
-                  {label}
-                  <button
-                    onClick={() => handleRemoveLabel(label)}
-                    className="hover:text-gray-200"
-                  >
-                    ×
-                  </button>
-                </span>
-              ))}
-            </div>
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={newLabel}
-                onChange={e => setNewLabel(e.target.value)}
-                placeholder="Add label..."
-                className="flex-1 bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 focus:outline-none focus:border-indigo-500 text-sm"
-                onKeyDown={e => e.key === 'Enter' && handleAddLabel()}
-              />
-              <button
-                onClick={handleAddLabel}
-                className="bg-indigo-600 hover:bg-indigo-700 px-4 py-2 rounded-lg transition text-sm"
-              >
-                Add
-              </button>
-            </div>
-          </div>
+          {/* TAB 2: DETAILS & COMMENTS */}
+          {activeTab === 'details' && (
+            <div className="flex h-full">
+              {/* Left Side: Misc Fields */}
+              <div className="w-1/2 p-6 space-y-6 overflow-y-auto border-r border-gray-700">
 
-          {/* Assignees */}
-          <div>
-            <label className="block text-sm font-medium mb-2">Assignees</label>
-            <div className="flex gap-2 flex-wrap mb-2">
-              {assignees.map(assignee => (
-                <span
-                  key={assignee}
-                  className="bg-purple-600 text-sm px-3 py-1 rounded-full text-white flex items-center gap-2"
-                >
-                  {assignee}
-                  <button
-                    onClick={() => handleRemoveAssignee(assignee)}
-                    className="hover:text-gray-200"
-                  >
-                    ×
-                  </button>
-                </span>
-              ))}
-            </div>
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={newAssignee}
-                onChange={e => setNewAssignee(e.target.value)}
-                placeholder="Add assignee..."
-                className="flex-1 bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 focus:outline-none focus:border-indigo-500 text-sm"
-                onKeyDown={e => e.key === 'Enter' && handleAddAssignee()}
-              />
-              <button
-                onClick={handleAddAssignee}
-                className="bg-indigo-600 hover:bg-indigo-700 px-4 py-2 rounded-lg transition text-sm"
-              >
-                Add
-              </button>
-            </div>
-          </div>
-
-          {/* Content */}
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <label className="text-sm font-medium">Content (Markdown)</label>
-              <button
-                onClick={() => setShowVersions(true)}
-                className="text-xs text-indigo-400 hover:text-indigo-300 flex items-center gap-1"
-              >
-                <Icons.History /> Version History ({task.versions.length})
-              </button>
-            </div>
-            <textarea
-              value={content}
-              onChange={e => setContent(e.target.value)}
-              onBlur={handleSave}
-              rows={6}
-              className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 focus:outline-none focus:border-indigo-500 font-mono text-sm resize-none"
-              placeholder="Write markdown content..."
-            />
-          </div>
-
-          {/* Preview */}
-          <div>
-            <label className="block text-sm font-medium mb-2">Preview</label>
-            <div className="markdown-preview bg-gray-700 p-4 rounded-lg min-h-[100px]">
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                {content || '*No content*'}
-              </ReactMarkdown>
-            </div>
-          </div>
-
-          {/* Comments */}
-          <div>
-            <label className="block text-sm font-medium mb-2">Comments</label>
-            <div className="space-y-2 mb-3">
-              {task.comments.map(comment => (
-                <div key={comment.id} className="bg-gray-700 p-3 rounded-lg">
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-xs text-gray-400">
-                      {format(new Date(comment.timestamp), 'PPp')}
+                {/* Time Tracking */}
+                <div className="bg-gray-800 p-4 rounded-xl border border-gray-700">
+                  <div className="flex items-center justify-between mb-4">
+                    <h4 className="text-sm font-semibold text-gray-300 flex items-center gap-2">
+                      <Icons.Clock /> Time Tracking
+                    </h4>
+                    <span className="text-xl font-bold text-indigo-400 font-mono">
+                      {formatTime(task.totalTimeSpent)}
                     </span>
-                    <button
-                      onClick={() => deleteComment(columnId, task.id, comment.id)}
-                      className="text-red-400 hover:text-red-300 text-xs"
-                    >
-                      Delete
-                    </button>
                   </div>
-                  <div className="markdown-preview text-sm">
-                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                      {comment.text}
-                    </ReactMarkdown>
+
+                  <div className="flex gap-2 mb-4">
+                    {activeTimeEntry ? (
+                      <button onClick={() => stopTimeTracking(columnId, task.id)} className="flex-1 bg-red-600 hover:bg-red-700 py-2 rounded-lg text-sm font-medium flex items-center justify-center gap-2 transition">
+                        <Icons.Stop /> Stop Timer
+                      </button>
+                    ) : (
+                      <button onClick={() => startTimeTracking(columnId, task.id)} className="flex-1 bg-green-600 hover:bg-green-700 py-2 rounded-lg text-sm font-medium flex items-center justify-center gap-2 transition">
+                        <Icons.Play /> Start Timer
+                      </button>
+                    )}
+                  </div>
+
+                  {task.timeTracking.length > 0 && (
+                    <div className="space-y-1">
+                      <div className="text-xs text-gray-500 uppercase font-semibold mb-2">Recent Sessions</div>
+                      <div className="max-h-32 overflow-y-auto pr-2 space-y-1">
+                        {task.timeTracking.slice().reverse().map((entry, idx) => (
+                          <div key={idx} className="flex justify-between text-xs text-gray-400 bg-gray-700/50 p-2 rounded">
+                            <span>{`${format(new Date(entry.startTime), 'MMM d, p')} - ${format(new Date(entry.endTime!), 'MMM d, p')}`}</span>
+                            <span>{entry.endTime ? formatTime(entry.duration) : 'Active...'}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Labels */}
+                <div>
+                  <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Labels</label>
+                  <div className="flex gap-2 flex-wrap mb-3">
+                    {labels.map(label => (
+                      <span key={label} className={`${getLabelColor(label)} text-sm px-3 py-1 rounded-full text-white flex items-center gap-2`}>
+                        {label}
+                        <button onClick={() => handleRemoveLabel(label)} className="hover:text-gray-200">×</button>
+                      </span>
+                    ))}
+                  </div>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={newLabel}
+                      onChange={e => setNewLabel(e.target.value)}
+                      placeholder="Add label..."
+                      className="flex-1 bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-indigo-500"
+                      onKeyDown={e => e.key === 'Enter' && handleAddLabel()}
+                    />
+                    <button onClick={handleAddLabel} className="bg-indigo-600 hover:bg-indigo-700 px-4 py-2 rounded-lg text-sm font-medium">Add</button>
                   </div>
                 </div>
-              ))}
+
+                {/* Assignees */}
+                <div>
+                  <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Assignees</label>
+                  <div className="flex gap-2 flex-wrap mb-3">
+                    {assignees.map(assignee => (
+                      <span key={assignee} className="bg-purple-600 text-sm px-3 py-1 rounded-full text-white flex items-center gap-2">
+                        {assignee}
+                        <button onClick={() => handleRemoveAssignee(assignee)} className="hover:text-gray-200">×</button>
+                      </span>
+                    ))}
+                  </div>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={newAssignee}
+                      onChange={e => setNewAssignee(e.target.value)}
+                      placeholder="Add assignee..."
+                      className="flex-1 bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-indigo-500"
+                      onKeyDown={e => e.key === 'Enter' && handleAddAssignee()}
+                    />
+                    <button onClick={handleAddAssignee} className="bg-indigo-600 hover:bg-indigo-700 px-4 py-2 rounded-lg text-sm font-medium">Add</button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Right Side: Comments */}
+              <div className="w-1/2 p-6 flex flex-col h-full bg-gray-800/30">
+                <h4 className="text-sm font-semibold text-gray-300 uppercase tracking-wider mb-4 flex items-center gap-2">
+                  <Icons.Comment /> Comments ({task.comments.length})
+                </h4>
+
+                <div className="flex-1 overflow-y-auto space-y-3 mb-4 pr-2 scrollbar-thin">
+                  {task.comments.length === 0 ? (
+                    <div className="text-center text-gray-500 py-10 italic">No comments yet.</div>
+                  ) : (
+                    task.comments.map(comment => (
+                      <div key={comment.id} className="bg-gray-700 p-3 rounded-xl border border-gray-600">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-xs text-gray-400 font-medium">
+                            {format(new Date(comment.timestamp), 'PPp')}
+                          </span>
+                          <button
+                            onClick={() => deleteComment(columnId, task.id, comment.id)}
+                            className="text-gray-500 hover:text-red-400 p-1 rounded"
+                            title="Delete comment"
+                          >
+                            <Icons.Trash />
+                          </button>
+                        </div>
+                        <div className="markdown-preview text-sm text-gray-200">
+                          <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                            {comment.text}
+                          </ReactMarkdown>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+
+                <div className="mt-auto">
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={newComment}
+                      onChange={e => setNewComment(e.target.value)}
+                      placeholder="Write a comment..."
+                      className="flex-1 bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 focus:outline-none focus:border-indigo-500 text-sm"
+                      onKeyDown={e => e.key === 'Enter' && handleAddComment()}
+                    />
+                    <button
+                      onClick={handleAddComment}
+                      className="bg-indigo-600 hover:bg-indigo-700 px-6 py-2 rounded-lg transition text-sm font-medium"
+                    >
+                      Send
+                    </button>
+                  </div>
+                </div>
+              </div>
             </div>
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={newComment}
-                onChange={e => setNewComment(e.target.value)}
-                placeholder="Add a comment..."
-                className="flex-1 bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 focus:outline-none focus:border-indigo-500 text-sm"
-                onKeyDown={e => e.key === 'Enter' && handleAddComment()}
-              />
-              <button
-                onClick={handleAddComment}
-                className="bg-indigo-600 hover:bg-indigo-700 px-4 py-2 rounded-lg transition text-sm"
-              >
-                Add
-              </button>
-            </div>
-          </div>
+          )}
         </div>
 
-        <div className="p-4 border-t border-gray-700 flex justify-between">
-          <button
-            onClick={handleDelete}
-            className="bg-red-600 hover:bg-red-700 px-4 py-2 rounded-lg transition text-sm"
-          >
-            Delete Task
-          </button>
-          <button
-            onClick={onClose}
-            className="bg-gray-600 hover:bg-gray-500 px-4 py-2 rounded-lg transition text-sm"
-          >
-            Close
-          </button>
-        </div>
+        {/* Version History Modal Overlay (Kept logic same, adjusted z-index and positioning within modal) */}
         {showVersions && (
-          <div className="absolute inset-0 bg-gray-900 flex flex-col rounded-2xl">
-            <div className="p-4 border-b border-gray-700 flex items-center justify-between">
-              <h3 className="text-lg font-semibold">Version History</h3>
+          <div className="absolute inset-0 bg-gray-900 z-10 flex flex-col">
+            <div className="p-4 border-b border-gray-700 flex items-center justify-between bg-gray-800">
+              <h3 className="text-lg font-semibold flex items-center gap-2"><Icons.History /> Version History</h3>
               <button onClick={() => {
                 setShowVersions(false);
                 setShowComparison(false);
@@ -1723,9 +2464,9 @@ function TaskModal({ task, columnId, onClose }: { task: Task; columnId: string; 
 
             {/* Version Comparison Controls */}
             {!showComparison && task.versions.length > 1 && (
-              <div className="px-4 py-2 border-b-2 border-gray-700">
-                <div className="grid grid-cols-3 gap-x-2 mb-1 items-end">
-                  <div>
+              <div className="px-6 py-3 border-b border-gray-700 bg-gray-800/50">
+                <div className="flex gap-4 items-end">
+                  <div className="flex-1">
                     <label className="block text-xs text-gray-400 mb-1">Version A (Left)</label>
                     <select
                       value={compareVersionA || ''}
@@ -1740,7 +2481,7 @@ function TaskModal({ task, columnId, onClose }: { task: Task; columnId: string; 
                       ))}
                     </select>
                   </div>
-                  <div>
+                  <div className="flex-1">
                     <label className="block text-xs text-gray-400 mb-1">Version B (Right)</label>
                     <select
                       value={compareVersionB || ''}
@@ -1755,168 +2496,86 @@ function TaskModal({ task, columnId, onClose }: { task: Task; columnId: string; 
                       ))}
                     </select>
                   </div>
-                {/* </div> */}
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => {
-                      const temp = compareVersionA;
-                      setCompareVersionA(compareVersionB);
-                      setCompareVersionB(temp);
-                    }}
-                    disabled={!compareVersionA || !compareVersionB}
-                    className="bg-gray-700 hover:bg-gray-600 disabled:opacity-50 px-4 py-2 rounded-lg text-sm"
-                  >
-                    ⇄
-                  </button>
                   <button
                     onClick={() => {
                       if (compareVersionA && compareVersionB) setShowComparison(true);
                     }}
                     disabled={!compareVersionA || !compareVersionB}
-                    className="flex-1 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed px-4 py-2 rounded-lg text-sm"
+                    className="bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed px-6 py-2 rounded-lg text-sm font-medium h-[38px]"
                   >
                     Compare
                   </button>
-                  </div>
                 </div>
               </div>
             )}
 
             {/* Side-by-Side Comparison View */}
-            {showComparison && compareVersionA && compareVersionB && (
-              <div className="flex-1 overflow-y-auto p-4">
-                <div className="mb-4 flex items-center justify-between">
-                  <h4 className="text-lg font-semibold">Comparing Versions</h4>
-                  <button
-                    onClick={() => {
-                      setShowComparison(false);
-                      setCompareVersionA(null);
-                      setCompareVersionB(null);
-                    }}
-                    className="text-sm text-indigo-400 hover:text-indigo-300"
-                  >
-                    Close Comparison
-                  </button>
-                </div>
-
+            {showComparison && compareVersionA && compareVersionB ? (
+              <div className="flex-1 overflow-y-auto p-6 bg-gray-900">
                 {(() => {
                   const versionA = task.versions.find(v => v.id === compareVersionA);
                   const versionB = task.versions.find(v => v.id === compareVersionB);
-
-                  const versionAIndex = task.versions.findIndex(
-                    v => v.id === versionA?.id
-                  );
-                  const versionBIndex = task.versions.findIndex(
-                    v => v.id === versionB?.id
-                  );
-
                   if (!versionA || !versionB) return null;
 
                   const contentA = versionA.content || '';
                   const contentB = versionB.content || '';
-
                   const linesA = contentA.split('\n');
                   const linesB = contentB.split('\n');
-                  const maxLines = Math.max(linesA.length, linesB.length);
 
                   return (
-                    <div>
-                      {/* Version Info */}
-                      <div className="grid grid-cols-2 gap-4 mb-4">
-                        <div className="bg-gray-800 p-3 rounded-lg h-fit">
-                          <div className='flex items-center justify-between'>
-                          <div className="text-sm font-medium mb-1">{versionAIndex === 0 ? 'Latest' : `Version ${task.versions.length - versionAIndex}`}</div>
-                          <div className="text-xs text-gray-400">
-                            {format(new Date(versionA.timestamp), 'PPp')}
-                            </div>
-                            </div>
-                          <div className="text-xs text-gray-500 mt-1">{versionA.action}</div>
-                        </div>
-                        <div className="bg-gray-800 p-3 rounded-lg h-fit">
-                          <div className='flex items-center justify-between'>
-                            <div className="text-sm font-medium mb-1">{versionBIndex === 0 ? 'Latest' : `Version ${task.versions.length - versionBIndex}`}</div>
-                            <div className="text-xs text-gray-400">
-                              {format(new Date(versionB.timestamp), 'PPp')}
-                            </div>
-                          </div>
-                          <div className="text-xs text-gray-500 mt-1">{versionB.action}</div>
-                        </div>
-                      </div>
-
-                      {/* Side-by-Side Diff */}
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="bg-gray-800 p-4 rounded-lg">
-                          <div className="text-xs text-gray-400 mb-2 flex items-center gap-2">
-                            <span className="text-red-400">● Removed lines</span>
-                          </div>
-                          <div className="font-mono text-sm space-y-1 max-h-96 overflow-y-auto">
-                            {linesA.map((line, idx) => {
-                              const isRemoved = !linesB.includes(line);
-                              return (
-                                <div
-                                  key={idx}
-                                  className={isRemoved ? 'bg-red-900/30 text-red-400 px-2 py-1' : 'text-gray-400 px-2 py-1'}
-                                >
-                                  <span className="text-gray-600 mr-2">{idx + 1}</span>
-                                  {line || ' '}
-                                </div>
-                              );
-                            })}
+                    <div className="h-full flex flex-col">
+                      <div className="grid grid-cols-2 gap-4 h-full">
+                        <div className="border border-red-900/50 rounded-lg overflow-hidden flex flex-col">
+                          <div className="bg-red-900/20 p-2 text-center text-red-300 text-sm font-bold border-b border-red-900/30">Version A (Removed)</div>
+                          <div className="flex-1 bg-gray-800 p-4 overflow-auto font-mono text-sm">
+                            {linesA.map((line, idx) => (
+                              <div key={idx} className={!linesB.includes(line) ? "bg-red-900/30 text-red-200 px-1" : "text-gray-500 px-1"}>
+                                {line || ' '}
+                              </div>
+                            ))}
                           </div>
                         </div>
-                        <div className="bg-gray-800 p-4 rounded-lg">
-                          <div className="text-xs text-gray-400 mb-2 flex items-center gap-2">
-                            <span className="text-green-400">● Added lines</span>
-                          </div>
-                          <div className="font-mono text-sm space-y-1 max-h-96 overflow-y-auto">
-                            {linesB.map((line, idx) => {
-                              const isAdded = !linesA.includes(line);
-                              return (
-                                <div
-                                  key={idx}
-                                  className={isAdded ? 'bg-green-900/30 text-green-400 px-2 py-1' : 'text-gray-300 px-2 py-1'}
-                                >
-                                  <span className="text-gray-600 mr-2">{idx + 1}</span>
-                                  {line || ' '}
-                                </div>
-                              );
-                            })}
+                        <div className="border border-green-900/50 rounded-lg overflow-hidden flex flex-col">
+                          <div className="bg-green-900/20 p-2 text-center text-green-300 text-sm font-bold border-b border-green-900/30">Version B (Added)</div>
+                          <div className="flex-1 bg-gray-800 p-4 overflow-auto font-mono text-sm">
+                            {linesB.map((line, idx) => (
+                              <div key={idx} className={!linesA.includes(line) ? "bg-green-900/30 text-green-200 px-1" : "text-gray-300 px-1"}>
+                                {line || ' '}
+                              </div>
+                            ))}
                           </div>
                         </div>
                       </div>
                     </div>
-                  );
+                  )
                 })()}
               </div>
-            )}
-
-            {/* Version List */}
-            {!showComparison && (
-              <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-gray-900 ">
+            ) : (
+              // Regular Version List
+              <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-gray-900">
                 {[...task.versions].reverse().map((version, index) => (
-                  <div key={version.id} className="border border-gray-700 p-3 rounded-lg hover:border-indigo-500 transition-colors">
+                  <div key={version.id} className="border border-gray-700 bg-gray-800 p-4 rounded-lg hover:border-indigo-500 transition-colors">
                     <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm font-medium text-gray-200">
-                        {index === 0 ? 'Latest Version' : `Version ${task.versions.length - index}`}
+                      <span className="text-sm font-bold text-gray-200">
+                        {index === 0 ? 'Current Version' : `Version ${task.versions.length - index}`}
                       </span>
                       <span className="text-xs text-gray-400">
                         {format(new Date(version.timestamp), 'PPp')}
                       </span>
                     </div>
-                    <div className="text-sm mb-1">
-                      <span className="font-medium text-gray-300">Action:</span> <span className="text-gray-400">{version.action}</span>
+                    <div className="text-sm mb-2 text-gray-300">
+                      <span className="text-gray-500">Action:</span> {version.action}
                     </div>
-                    <div className="bg-gray-800 p-2 rounded text-sm text-gray-300 mb-2 max-h-32 overflow-y-auto">
-                      {version.content || <em className="text-gray-500">Empty</em>}
+                    <div className="bg-gray-900 p-3 rounded text-sm text-gray-400 font-mono mb-3 max-h-32 overflow-hidden relative">
+                      {version.content ? version.content.substring(0, 300) : <em className="text-gray-600">Empty</em>}
+                      {version.content.length > 300 && <div className="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-gray-900 to-transparent"></div>}
                     </div>
                     {index > 0 && (
                       <button
                         onClick={() => handleRestoreVersion(version)}
-                        className="flex items-center gap-2 text-sm text-indigo-400 hover:text-indigo-300 transition-colors"
-                      ><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
-                </svg>
-                        Restore this version
+                        className="flex items-center gap-2 text-sm text-indigo-400 hover:text-indigo-300 transition-colors font-medium"
+                      >
+                        <Icons.History /> Restore this version
                       </button>
                     )}
                   </div>
@@ -1935,6 +2594,7 @@ function NotesManager() {
   const { data, selectedNote, selectNote, createNote, updateNote, deleteNote, selectedFolder, setSelectedFolder, showConfirm } = useStore();
   const note = data.notes.find(n => n.id === selectedNote);
   const [showVersions, setShowVersions] = useState(false);
+  const [viewMode, setViewMode] = useState<'editor' | 'preview'>('editor');
   const { openModal } = useModalPrompt();
   const folders = ['All', 'General', 'Work', 'Personal', 'Ideas', 'Archive'];
 
@@ -1982,6 +2642,30 @@ function NotesManager() {
       setShowVersions(false);
     }
   };
+
+  // Keyboard shortcuts for editor/preview toggle
+  useEffect(() => {
+    if (!note) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Only handle shortcuts when a note is selected and versions modal is not open
+      if (showVersions) return;
+
+      // Ctrl+1 / Cmd+1 for Editor
+      if ((e.ctrlKey || e.metaKey) && e.key === '1' && !e.shiftKey && !e.altKey) {
+        e.preventDefault();
+        setViewMode('editor');
+      }
+      // Ctrl+2 / Cmd+2 for Preview
+      if ((e.ctrlKey || e.metaKey) && e.key === '2' && !e.shiftKey && !e.altKey) {
+        e.preventDefault();
+        setViewMode('preview');
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [note, showVersions]);
 
   return (
     <div className="h-full flex">
@@ -2118,11 +2802,35 @@ function NotesManager() {
                     <option value="Archive">Archive</option>
                   </select>
                 </div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setViewMode('editor')}
+                    className={`flex items-center gap-2 px-3 py-1.5 text-xs rounded-lg transition ${viewMode === 'editor'
+                        ? 'bg-indigo-600 text-white'
+                        : 'bg-gray-700 text-gray-400 hover:bg-gray-600 hover:text-gray-300'
+                      }`}
+                    title="Editor (Ctrl+1 / Cmd+1)"
+                  >
+                    <Icons.Edit />
+                  </button>
+                  <button
+                    onClick={() => setViewMode('preview')}
+                    className={`flex items-center gap-2 px-3 py-1.5 text-xs rounded-lg transition ${viewMode === 'preview'
+                        ? 'bg-indigo-600 text-white'
+                        : 'bg-gray-700 text-gray-400 hover:bg-gray-600 hover:text-gray-300'
+                      }`}
+                    title="Preview (Ctrl+2 / Cmd+2)"
+                  >
+                    <Icons.Eye />
+                  </button>
+                </div>
+
                 <button
                   onClick={() => setShowVersions(true)}
                   className="text-xs text-indigo-400 hover:text-indigo-300 flex items-center gap-1"
                 >
-                  <Icons.History /> Version History ({note.versions.length})
+                  <Icons.History /> Versions ({note.versions.length})
                 </button>
                 <button
                   onClick={handleDelete}
@@ -2133,26 +2841,22 @@ function NotesManager() {
               </div>
             </div>
 
-            <div className="flex-1 flex overflow-hidden">
-              <div className="flex-1 flex flex-col border-r border-gray-700">
-                <div className="p-2 text-xs text-gray-500 border-b border-gray-700">
-                  Editor (Markdown)
-                </div>
+            <div className="flex-1 flex flex-col overflow-hidden">
+
+              {viewMode === 'editor' ? (
                 <textarea
                   value={note.content}
                   onChange={e => updateNote(note.id, { content: e.target.value })}
-                  className="flex-1 p-4 bg-transparent focus:outline-none resize-none font-mono text-sm"
+                  className="flex-1 p-4 bg-transparent focus:outline-none resize-none font-mono text-sm overflow-y-auto scrollbar-thin"
                   placeholder="Start writing..."
                 />
-              </div>
-              <div className="flex-1 flex flex-col">
-                <div className="p-2 text-xs text-gray-500 border-b border-gray-700">Preview</div>
+              ) : (
                 <div className="flex-1 p-4 overflow-y-auto scrollbar-thin markdown-preview">
                   <ReactMarkdown remarkPlugins={[remarkGfm]}>
                     {note.content || '*Start writing...*'}
                   </ReactMarkdown>
                 </div>
-              </div>
+              )}
             </div>
 
             {showVersions && (
@@ -2231,6 +2935,7 @@ function ScriptsManager() {
   const { data, selectedScript, selectScript, createScript, updateScript, deleteScript, showConfirm } = useStore();
   const script = data.scripts.find(s => s.id === selectedScript);
   const [showVersions, setShowVersions] = useState(false);
+  const [viewMode, setViewMode] = useState<'editor' | 'preview'>('editor');
   const { openModal } = useModalPrompt();
 
   const languages = [
@@ -2276,6 +2981,30 @@ function ScriptsManager() {
       setShowVersions(false);
     }
   };
+
+  // Keyboard shortcuts for editor/preview toggle
+  useEffect(() => {
+    if (!script) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Only handle shortcuts when a script is selected and versions modal is not open
+      if (showVersions) return;
+
+      // Ctrl+1 / Cmd+1 for Editor
+      if ((e.ctrlKey || e.metaKey) && e.key === '1' && !e.shiftKey && !e.altKey) {
+        e.preventDefault();
+        setViewMode('editor');
+      }
+      // Ctrl+2 / Cmd+2 for Preview
+      if ((e.ctrlKey || e.metaKey) && e.key === '2' && !e.shiftKey && !e.altKey) {
+        e.preventDefault();
+        setViewMode('preview');
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [script, showVersions]);
 
   return (
     <div className="h-full flex">
@@ -2342,7 +3071,7 @@ function ScriptsManager() {
                   onClick={() => setShowVersions(true)}
                   className="text-xs text-indigo-400 hover:text-indigo-300 flex items-center gap-1"
                 >
-                  <Icons.History /> Version History ({script.versions.length})
+                  <Icons.History /> Versions ({script.versions.length})
                 </button>
                 <button
                   onClick={handleCopy}
@@ -2350,6 +3079,28 @@ function ScriptsManager() {
                 >
                   <Icons.Copy /> Copy Code
                 </button>
+                <div className="flex items-center gap-x-2">
+                  <button
+                    onClick={() => setViewMode('editor')}
+                    className={`flex items-center gap-2 px-3 py-1.5 text-xs rounded-lg transition ${viewMode === 'editor'
+                        ? 'bg-indigo-600 text-white'
+                        : 'bg-gray-700 text-gray-400 hover:bg-gray-600 hover:text-gray-300'
+                      }`}
+                    title="Editor (Ctrl+1 / Cmd+1)"
+                  >
+                    <Icons.Edit />
+                  </button>
+                  <button
+                    onClick={() => setViewMode('preview')}
+                    className={`flex items-center gap-2 px-3 py-1.5 text-xs rounded-lg transition ${viewMode === 'preview'
+                        ? 'bg-indigo-600 text-white'
+                        : 'bg-gray-700 text-gray-400 hover:bg-gray-600 hover:text-gray-300'
+                      }`}
+                    title="Preview (Ctrl+2 / Cmd+2)"
+                  >
+                    <Icons.Eye />
+                  </button>
+                </div>
                 <button
                   onClick={handleDelete}
                   className="text-xs text-red-400 hover:text-red-300 ml-auto"
@@ -2359,22 +3110,17 @@ function ScriptsManager() {
               </div>
             </div>
 
-            <div className="flex-1 flex overflow-hidden">
-              <div className="flex-1 flex flex-col border-r border-gray-700">
-                <div className="p-2 text-xs text-gray-500 border-b border-gray-700">Code Editor</div>
+            <div className="flex-1 flex flex-col overflow-hidden">
+              {viewMode === 'editor' ? (
                 <textarea
                   value={script.code}
                   onChange={e => updateScript(script.id, { code: e.target.value })}
-                  className="flex-1 p-4 bg-transparent focus:outline-none resize-none font-mono text-sm"
+                  className="flex-1 p-4 bg-transparent focus:outline-none resize-none font-mono text-sm overflow-y-auto scrollbar-thin"
                   placeholder="// Start coding..."
                   spellCheck={false}
                 />
-              </div>
-              <div className="flex-1 flex flex-col">
-                <div className="p-2 text-xs text-gray-500 border-b border-gray-700">
-                  Syntax Highlighted Preview
-                </div>
-                <div className="flex-1 overflow-auto max-w-[800px]">
+              ) : (
+                <div className="flex-1 overflow-auto">
                   <SyntaxHighlighter
                     language={script.language}
                     style={vscDarkPlus}
@@ -2384,12 +3130,12 @@ function ScriptsManager() {
                       background: 'transparent',
                       minHeight: '100%',
                     }}
-                    showLineNumbers
+                      showLineNumbers
                   >
                     {script.code || '// Start coding...'}
                   </SyntaxHighlighter>
                 </div>
-              </div>
+              )}
             </div>
 
             {showVersions && (
@@ -2481,7 +3227,7 @@ function ScriptsManager() {
     </div>
   );
 }
-function StatusBar() {
+export function StatusBar() {
   const { data } = useStore();
   // In Header component
   const totalTasks = data.kanban.columns.reduce((sum, col) => sum + col.tasks.length, 0);
@@ -2502,8 +3248,7 @@ function StatusBar() {
         <span className="w-2 h-2 bg-purple-500 rounded-full"></span>
         {totalScripts} Scripts
       </span>
-    </div>
-  )
+    </div>)
 }
 
 // Main App Component
