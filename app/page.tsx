@@ -2481,7 +2481,7 @@ function ScriptsManager() {
     </div>
   );
 }
-export function StatusBar() {
+function StatusBar() {
   const { data } = useStore();
   // In Header component
   const totalTasks = data.kanban.columns.reduce((sum, col) => sum + col.tasks.length, 0);
@@ -2502,7 +2502,8 @@ export function StatusBar() {
         <span className="w-2 h-2 bg-purple-500 rounded-full"></span>
         {totalScripts} Scripts
       </span>
-    </div>)
+    </div>
+  )
 }
 
 // Main App Component
