@@ -363,7 +363,7 @@ function Header() {
   const {
     currentTab, setCurrentTab, workspaces, currentWorkspace,
     switchWorkspace, syncNow, isSyncing, syncStatus, repo,
-    hasUnsavedChanges, clearSession, saveToGitHub, setGlobalSearchOpen
+    hasUnsavedChanges, clearSession, saveToGitHub, setGlobalSearchOpen, data
   } = useStore();
 
   const [showWorkspaceModal, setShowWorkspaceModal] = useState(false);
@@ -877,20 +877,20 @@ function KanbanBoard() {
   };
 
   const handleColumnDragStart = (e: React.DragEvent, index: number) => {
-    setDraggedColumn(index);
-    e.dataTransfer.effectAllowed = 'move';
+    // setDraggedColumn(index);
+    // e.dataTransfer.effectAllowed = 'move';
   };
 
   const handleColumnDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
+    // e.preventDefault();
   };
 
   const handleColumnDrop = (e: React.DragEvent, dropIndex: number) => {
-    e.preventDefault();
-    if (draggedColumn !== null && draggedColumn !== dropIndex) {
-      reorderColumns(draggedColumn, dropIndex);
-    }
-    setDraggedColumn(null);
+    // e.preventDefault();
+    // if (draggedColumn !== null && draggedColumn !== dropIndex) {
+    //   reorderColumns(draggedColumn, dropIndex);
+    // }
+    // setDraggedColumn(null);
   };
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -2185,11 +2185,34 @@ function ScriptsManager() {
     </div>
   );
 }
+export function StatusBar() {
+  const { data } = useStore();
+  // In Header component
+  const totalTasks = data.kanban.columns.reduce((sum, col) => sum + col.tasks.length, 0);
+  const totalNotes = data.notes.length;
+  const totalScripts = data.scripts.length;
+
+  return (
+    <div className="mx-4 hidden md:flex items-center gap-3 text-xs text-gray-400">
+      <span className="flex items-center gap-1">
+        <span className="w-2 h-2 bg-blue-500 rounded-full"></span>
+        {totalTasks} Tasks
+      </span>
+      <span className="flex items-center gap-1">
+        <span className="w-2 h-2 bg-green-500 rounded-full"></span>
+        {totalNotes} Notes
+      </span>
+      <span className="flex items-center gap-1">
+        <span className="w-2 h-2 bg-purple-500 rounded-full"></span>
+        {totalScripts} Scripts
+      </span>
+    </div>)
+}
 
 // Main App Component
 export default function Home() {
   const { data: session, status } = useSession();
-  const { isAuthenticated, repoSelected, currentTab, setSession, globalSearchOpen, setGlobalSearchOpen } = useStore();
+  const { isAuthenticated, repoSelected, currentTab, setSession, globalSearchOpen, setGlobalSearchOpen, setCurrentTab, saveToGitHub } = useStore();
   useEffect(() => {
     if (session?.user && session?.accessToken) {
       console.log('Setting session with token:', session.accessToken ? 'Token exists' : 'No token');
@@ -2199,6 +2222,25 @@ export default function Home() {
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Alt + 1/2/3 for tab switching
+      if (e.altKey && e.key === '1') {
+        e.preventDefault();
+        setCurrentTab('kanban');
+      }
+      if (e.altKey && e.key === '2') {
+        e.preventDefault();
+        setCurrentTab('notes');
+      }
+      if (e.altKey && e.key === '3') {
+        e.preventDefault();
+        setCurrentTab('scripts');
+      }
+
+      // Alt + S for manual save
+      if (e.altKey && e.key === 's') {
+        e.preventDefault();
+        saveToGitHub();
+      }
       // Ctrl/Cmd + K for global search
       if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
         e.preventDefault();
@@ -2241,6 +2283,7 @@ export default function Home() {
         {currentTab === 'notes' && <NotesManager />}
         {currentTab === 'scripts' && <ScriptsManager />}
       </main>
+      <StatusBar />
       {/* Global Search Modal */}
       {globalSearchOpen && <GlobalSearchModal onClose={() => setGlobalSearchOpen(false)} />}
       {/* Confirmation Modal */}
