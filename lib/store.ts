@@ -425,7 +425,7 @@ export const useStore = create<AppState>((set, get) => {
       }
     },
 
- createWorkspace: async (name: string) => {
+    createWorkspace: async (name: string) => {
       const { workspaces } = get();
       if (workspaces.includes(name)) {
         throw new Error('Workspace already exists');
@@ -589,7 +589,7 @@ export const useStore = create<AppState>((set, get) => {
       markChanged();
     },
 
-updateTask: (columnId: string, taskId: string, updates: Partial<Task>) => {
+    updateTask: (columnId: string, taskId: string, updates: Partial<Task>) => {
       const now = new Date().toISOString();
 
       set(state => ({
@@ -601,16 +601,16 @@ updateTask: (columnId: string, taskId: string, updates: Partial<Task>) => {
             columns: state.data.kanban.columns.map(col =>
               col.id === columnId
                 ? {
-                    ...col,
-                    tasks: col.tasks.map(task => {
-                      if (task.id !== taskId) return task;
-                      return {
-                        ...task,
-                        ...updates,
-                        updatedAt: now,
-                      };
-                    }),
-                  }
+                  ...col,
+                  tasks: col.tasks.map(task => {
+                    if (task.id !== taskId) return task;
+                    return {
+                      ...task,
+                      ...updates,
+                      updatedAt: now,
+                    };
+                  }),
+                }
                 : col
             ),
           },
@@ -1001,7 +1001,7 @@ updateTask: (columnId: string, taskId: string, updates: Partial<Task>) => {
       await get().loadWorkspace(get().currentWorkspace);
     },
 
-saveToGitHub: async () => {
+    saveToGitHub: async () => {
       const state = get();
       if (!state.isAuthenticated || !state.repoSelected) return;
       set({ isSyncing: true, syncStatus: 'Saving...' });
@@ -1035,21 +1035,21 @@ saveToGitHub: async () => {
             columns: state.data.kanban.columns.map(col =>
               col.id === columnId
                 ? {
-                    ...col,
-                    tasks: col.tasks.map(task =>
-                      task.id === taskId
-                        ? {
-                            ...task,
-                            versions: [...task.versions, {
-                              id: generateId(),
-                              timestamp: now,
-                              action: 'Manual save',
-                              content: task.content,
-                            }],
-                          }
-                        : task
-                    ),
-                  }
+                  ...col,
+                  tasks: col.tasks.map(task =>
+                    task.id === taskId
+                      ? {
+                        ...task,
+                        versions: [...task.versions, {
+                          id: generateId(),
+                          timestamp: now,
+                          action: 'Manual save',
+                          content: task.content,
+                        }],
+                      }
+                      : task
+                  ),
+                }
                 : col
             ),
           },
@@ -1069,14 +1069,14 @@ saveToGitHub: async () => {
           notes: state.data.notes.map(note =>
             note.id === noteId
               ? {
-                  ...note,
-                  versions: [...note.versions, {
-                    id: generateId(),
-                    timestamp: now,
-                    action: 'Manual save',
-                    content: note.content,
-                  }],
-                }
+                ...note,
+                versions: [...note.versions, {
+                  id: generateId(),
+                  timestamp: now,
+                  action: 'Manual save',
+                  content: note.content,
+                }],
+              }
               : note
           ),
         },
@@ -1095,14 +1095,14 @@ saveToGitHub: async () => {
           scripts: state.data.scripts.map(script =>
             script.id === scriptId
               ? {
-                  ...script,
-                  versions: [...script.versions, {
-                    id: generateId(),
-                    timestamp: now,
-                    action: 'Manual save',
-                    code: script.code,
-                  }],
-                }
+                ...script,
+                versions: [...script.versions, {
+                  id: generateId(),
+                  timestamp: now,
+                  action: 'Manual save',
+                  code: script.code,
+                }],
+              }
               : script
           ),
         },
@@ -1131,7 +1131,7 @@ saveToGitHub: async () => {
     setGlobalSearchOpen: (open) => set({ globalSearchOpen: open }),
     setSettingsOpen: (open) => set({ settingsOpen: open }),
 
-     // Confirmation Modal
+    // Confirmation Modal
     showConfirm: (title: string, message: string, onConfirm: () => void) => {
       set({
         confirmModalOpen: true,

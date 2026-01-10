@@ -363,7 +363,7 @@ function Header() {
   const {
     currentTab, setCurrentTab, workspaces, currentWorkspace,
     switchWorkspace, syncNow, isSyncing, syncStatus, repo,
-    hasUnsavedChanges, clearSession, saveToGitHub, setGlobalSearchOpen, data
+    hasUnsavedChanges, clearSession, saveToGitHub, setGlobalSearchOpen
   } = useStore();
 
   const [showWorkspaceModal, setShowWorkspaceModal] = useState(false);
@@ -399,7 +399,6 @@ function Header() {
                 <Icons.Plus />
               </button>
             </div>
-
             <div className="relative flex bg-gray-700/60 rounded-lg p-1 w-fit">
               {tabs.map(tab => (
                 <button
@@ -1676,25 +1675,55 @@ function TaskModal({ task, columnId, onClose }: { task: Task; columnId: string; 
               </button>
             </div>
             <div className="flex-1 overflow-y-auto p-4 space-y-3">
-              {[...task.versions].reverse().map((version) => (
-                <div key={version.id} className="bg-gray-700 p-3 rounded-lg">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-medium">{version.action}</span>
-                    <span className="text-xs text-gray-400">
-                      {format(new Date(version.timestamp), 'PPp')}
-                    </span>
-                  </div>
-                  <div className="bg-gray-800 p-2 rounded text-sm text-gray-300 mb-2 max-h-32 overflow-y-auto">
-                    {version.content || <em className="text-gray-500">Empty</em>}
-                  </div>
-                  <button
-                    onClick={() => handleRestoreVersion(version)}
-                    className="text-xs text-indigo-400 hover:text-indigo-300"
+              {[...task.versions].reverse().map((version, index) => {
+                const versionNumber = task.versions.length - index;
+                const isLatest = index === 0;
+
+                return (
+                  <div
+                    key={version.id}
+                    className="border border-gray-700 rounded-lg p-4 hover:border-indigo-500 transition-colors"
                   >
-                    Restore this version
-                  </button>
-                </div>
-              ))}
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="text-sm font-medium text-gray-200">
+                        {isLatest ? '✨ Latest Version' : `📌 Version ${versionNumber}`}
+                      </span>
+                      <div className="flex items-center gap-2">
+                        {!isLatest && (
+                          <button
+                            onClick={() => handleRestoreVersion(version)}
+                            className="flex items-center gap-2 text-sm text-indigo-400 hover:text-indigo-300 transition-colors"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                            </svg>
+                            Revert to this version
+                          </button>)} {!isLatest && <span>•</span>}
+                        <span className="text-xs text-gray-400">
+                          {format(new Date(version.timestamp), 'PPp')}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2 mb-3">
+                      <div className="text-sm">
+                        <span className="font-medium text-gray-300">Action:</span>{' '}
+                        <span className="text-gray-400">{version.action}</span>
+                      </div>
+
+                      {version.content && (
+                        <div className="text-sm">
+                          <span className="font-medium text-gray-300">Content Preview:</span>
+                          <div className="mt-1 bg-gray-800 p-2 rounded text-xs text-gray-400 max-h-20 overflow-y-auto font-mono">
+                            {version.content.substring(0, 200)}
+                            {version.content.length > 200 ? '...' : ''}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
         )}
@@ -1937,27 +1966,54 @@ function NotesManager() {
                   </button>
                 </div>
                 <div className="flex-1 overflow-y-auto p-4 space-y-3">
-                  {[...note.versions].reverse().map(version => (
-                    <div key={version.id} className="bg-gray-700 p-3 rounded-lg">
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-sm font-medium">{version.action}</span>
-                        <span className="text-xs text-gray-400">
-                          {format(new Date(version.timestamp), 'PPp')}
-                        </span>
-                      </div>
-                      <div className="bg-gray-800 p-2 rounded text-sm text-gray-300 mb-2 max-h-32 overflow-y-auto markdown-preview">
-                        <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                          {version.content || '*Empty*'}
-                        </ReactMarkdown>
-                      </div>
-                      <button
-                        onClick={() => handleRestoreVersion(version)}
-                        className="text-xs text-indigo-400 hover:text-indigo-300"
+                  {[...note.versions].reverse().map((version, index) => {
+                    const versionNumber = note.versions.length - index;
+                    const isLatest = index === 0;
+
+                    return (
+                      <div
+                        key={version.id}
+                        className="border border-gray-700 rounded-lg p-4 hover:border-green-500 transition-colors"
                       >
-                        Restore this version
-                      </button>
-                    </div>
-                  ))}
+                        <div className="flex items-center justify-between mb-3">
+                          <span className="text-sm font-medium text-gray-200">
+                            {isLatest ? '✨ Latest Version' : `📝 Version ${versionNumber}`}
+                          </span>
+                          <span className="text-xs text-gray-400">
+                            {format(new Date(version.timestamp), 'PPp')}
+                          </span>
+                        </div>
+
+                        <div className="space-y-2 mb-3">
+                          <div className="text-sm">
+                            <span className="font-medium text-gray-300">Action:</span>{' '}
+                            <span className="text-gray-400">{version.action}</span>
+                          </div>
+
+                          <div className="text-sm">
+                            <span className="font-medium text-gray-300">Content Preview:</span>
+                            <div className="mt-1 bg-gray-800 p-3 rounded text-sm text-gray-300 max-h-32 overflow-y-auto markdown-preview break-words">
+                              <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                                {version.content.length > 300 ? `${version.content.slice(0, 300)}…` : version.content}
+                              </ReactMarkdown>
+                            </div>
+                          </div>
+                        </div>
+
+                        {!isLatest && (
+                          <button
+                            onClick={() => handleRestoreVersion(version)}
+                            className="flex items-center gap-2 text-sm text-green-400 hover:text-green-300 transition-colors"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                            </svg>
+                            Revert to this version
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             )}
@@ -2120,7 +2176,7 @@ function ScriptsManager() {
                 <div className="p-2 text-xs text-gray-500 border-b border-gray-700">
                   Syntax Highlighted Preview
                 </div>
-                <div className="flex-1 overflow-auto">
+                <div className="flex-1 overflow-auto max-w-[800px]">
                   <SyntaxHighlighter
                     language={script.language}
                     style={vscDarkPlus}
@@ -2147,31 +2203,73 @@ function ScriptsManager() {
                   </button>
                 </div>
                 <div className="flex-1 overflow-y-auto p-4 space-y-3">
-                  {[...script.versions].reverse().map(version => (
-                    <div key={version.id} className="bg-gray-700 p-3 rounded-lg">
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-sm font-medium">{version.action}</span>
-                        <span className="text-xs text-gray-400">
-                          {format(new Date(version.timestamp), 'PPp')}
-                        </span>
-                      </div>
-                      <div className="bg-gray-800 rounded overflow-hidden mb-2 max-h-40 overflow-y-auto">
-                        <SyntaxHighlighter
-                          language={script.language}
-                          style={vscDarkPlus}
-                          customStyle={{ margin: 0, padding: '0.5rem', fontSize: '0.75rem' }}
-                        >
-                          {version.code || '// Empty'}
-                        </SyntaxHighlighter>
-                      </div>
-                      <button
-                        onClick={() => handleRestoreVersion(version)}
-                        className="text-xs text-indigo-400 hover:text-indigo-300"
+                  {[...script.versions].reverse().map((version, index) => {
+                    const versionNumber = script.versions.length - index;
+                    const isLatest = index === 0;
+
+                    return (
+                      <div
+                        key={version.id}
+                        className="border border-gray-700 rounded-lg p-4 hover:border-purple-500 transition-colors"
                       >
-                        Restore this version
-                      </button>
-                    </div>
-                  ))}
+                        <div className="flex items-center justify-between mb-3">
+                          <span className="text-sm font-medium text-gray-200">
+                            {isLatest ? '✨ Latest Version' : `💻 Version ${versionNumber}`}
+                          </span>
+                          <span className="text-xs text-gray-400">
+                            {format(new Date(version.timestamp), 'PPp')}
+                          </span>
+                        </div>
+
+                        <div className="space-y-2 mb-3">
+                          <div className="text-sm">
+                            <span className="font-medium text-gray-300">Action:</span>{' '}
+                            <span className="text-gray-400">{version.action}</span>
+                          </div>
+
+                          <div className="text-sm">
+                            <span className="font-medium text-gray-300">Language:</span>{' '}
+                            <span className="text-gray-400 capitalize">{script.language}</span>
+                          </div>
+
+                          {version.code && (
+                            <div className="text-sm">
+                              <span className="font-medium text-gray-300">Code Preview:</span>
+                              <span className="mt-1 bg-gray-800 rounded  max-h-40 overflow-y-auto w-3/4">
+                                {/* <SyntaxHighlighter
+                                  language={script.language}
+                                  style={vscDarkPlus}
+                                  customStyle={{
+                                    margin: 0,
+                                    padding: '0.75rem',
+                                    fontSize: '0.75rem',
+                                    background: '#1e1e1e',
+                                    width: 'max-content'
+                                  }}
+                                  showLineNumbers={false}
+                                >
+                                </SyntaxHighlighter> */}
+                                  {version.code.substring(0, 200)}
+                                  {version.code.length > 200 ? '\n\n// ...' : ''}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+
+                        {!isLatest && (
+                          <button
+                            onClick={() => handleRestoreVersion(version)}
+                            className="flex items-center gap-2 text-sm text-purple-400 hover:text-purple-300 transition-colors"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                            </svg>
+                            Revert to this version
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             )}
