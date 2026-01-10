@@ -431,18 +431,18 @@ function Header() {
               onClick={syncNow}
               disabled={isSyncing}
               className="p-2 hover:bg-gray-700 rounded-lg transition disabled:opacity-50"
-              title="Sync with GitHub (Pull)"
+              title="Sync with GitHub"
             >
               <Icons.Sync className={`w-5 h-5 ${isSyncing ? 'animate-spin' : ''}`} />
             </button>
-            {/* <button
+            <button
               onClick={saveToGitHub}
               disabled={isSyncing || !hasUnsavedChanges}
               className="px-3 py-1.5 text-xs bg-indigo-600 hover:bg-indigo-700 rounded-lg transition disabled:opacity-50"
               title="Manual Save to GitHub"
             >
               Save
-            </button> */}
+            </button>
             <button
               onClick={() => setShowImportExportModalModal(true)}
               className="p-2 hover:bg-gray-700 rounded-lg transition"

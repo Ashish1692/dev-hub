@@ -185,6 +185,9 @@ interface AppState {
   // Sync
   syncNow: () => Promise<void>;
   saveToGitHub: () => Promise<void>;
+  manualSaveTask: (columnId: string, taskId: string) => Promise<void>;
+  manualSaveNote: (noteId: string) => Promise<void>;
+  manualSaveScript: (scriptId: string) => Promise<void>;
   exportWorkspace: () => string;
   importWorkspace: (jsonData: string) => Promise<void>;
 
@@ -222,37 +225,33 @@ const getDefaultData = (): WorkspaceData => ({
 const generateId = () => `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
 export const useStore = create<AppState>((set, get) => {
-  // Debounced save function
-  const debouncedSave = debounce(async () => {
-    const state = get();
-    if (!state.isAuthenticated || !state.repoSelected) return;
+  // Auto-sync every 5 minutes (without creating versions)
+  let autoSyncInterval: NodeJS.Timeout | null = null;
 
-    try {
-      set({ isSyncing: true, syncStatus: 'Saving...' });
-      await github.saveFile(state.currentWorkspace, state.data);
-      set({
-        isSyncing: false,
-        syncStatus: 'Saved',
-        lastSynced: new Date(),
-        hasUnsavedChanges: false
-      });
+  const startAutoSync = () => {
+    if (autoSyncInterval) clearInterval(autoSyncInterval);
 
-      setTimeout(() => {
-        set({ syncStatus: '' });
-      }, 2000);
-    } catch (error: any) {
-      console.error('Save failed:', error);
-      set({
-        isSyncing: false,
-        syncStatus: `Error: ${error.message}`,
-        hasUnsavedChanges: true
-      });
-    }
-  }, 1500);
-
-  const triggerSave = () => {
-    set({ hasUnsavedChanges: true, syncStatus: 'Unsaved changes...' });
-    debouncedSave();
+    autoSyncInterval = setInterval(async () => {
+      const state = get();
+      if (state.isAuthenticated && state.repoSelected && state.hasUnsavedChanges) {
+        try {
+          console.log('[Auto-sync] Syncing data to GitHub (5 min interval)');
+          await github.saveFile(state.currentWorkspace, state.data);
+          set({
+            lastSynced: new Date(),
+            hasUnsavedChanges: false,
+            syncStatus: 'Auto-synced'
+          });
+          setTimeout(() => set({ syncStatus: '' }), 2000);
+        } catch (error: any) {
+          console.error('[Auto-sync] Failed:', error);
+        }
+      }
+    }, 5 * 60 * 1000); // 5 minutes
+  };
+  // Mark data as changed (doesn't save, just marks)
+  const markChanged = () => {
+    set({ hasUnsavedChanges: true, syncStatus: 'Unsaved changes' });
   };
 
   return {
@@ -292,6 +291,9 @@ export const useStore = create<AppState>((set, get) => {
         user,
         accessToken,
       });
+
+      // Start auto-sync interval
+      startAutoSync();
 
       // Load saved repo from localStorage
       const savedRepo = localStorage.getItem('devhub-repo');
@@ -498,7 +500,7 @@ export const useStore = create<AppState>((set, get) => {
           },
         },
       }));
-      triggerSave();
+      markChanged();
     },
 
     renameColumn: (columnId: string, title: string) => {
@@ -513,7 +515,7 @@ export const useStore = create<AppState>((set, get) => {
           },
         },
       }));
-      triggerSave();
+      markChanged();
     },
 
     deleteColumn: (columnId: string) => {
@@ -526,7 +528,7 @@ export const useStore = create<AppState>((set, get) => {
           },
         },
       }));
-      triggerSave();
+      markChanged();
     },
 
     reorderColumns: (startIndex: number, endIndex: number) => {
@@ -544,7 +546,7 @@ export const useStore = create<AppState>((set, get) => {
           },
         };
       });
-      triggerSave();
+      markChanged();
     },
 
     addTask: (columnId: string, title: string) => {
@@ -584,10 +586,10 @@ export const useStore = create<AppState>((set, get) => {
           },
         },
       }));
-      triggerSave();
+      markChanged();
     },
 
-    updateTask: (columnId: string, taskId: string, updates: Partial<Task>) => {
+updateTask: (columnId: string, taskId: string, updates: Partial<Task>) => {
       const now = new Date().toISOString();
 
       set(state => ({
@@ -599,33 +601,22 @@ export const useStore = create<AppState>((set, get) => {
             columns: state.data.kanban.columns.map(col =>
               col.id === columnId
                 ? {
-                  ...col,
-                  tasks: col.tasks.map(task => {
-                    if (task.id !== taskId) return task;
-
-                    const newVersions = updates.content !== undefined && updates.content !== task.content
-                      ? [...task.versions, {
-                        id: generateId(),
-                        timestamp: now,
-                        action: 'Content updated',
-                        content: task.content,
-                      }]
-                      : task.versions;
-
-                    return {
-                      ...task,
-                      ...updates,
-                      versions: newVersions,
-                      updatedAt: now,
-                    };
-                  }),
-                }
+                    ...col,
+                    tasks: col.tasks.map(task => {
+                      if (task.id !== taskId) return task;
+                      return {
+                        ...task,
+                        ...updates,
+                        updatedAt: now,
+                      };
+                    }),
+                  }
                 : col
             ),
           },
         },
       }));
-      triggerSave();
+      markChanged();
     },
 
     deleteTask: (columnId: string, taskId: string) => {
@@ -642,7 +633,7 @@ export const useStore = create<AppState>((set, get) => {
           },
         },
       }));
-      triggerSave();
+      markChanged();
     },
 
     archiveTask: (columnId: string, taskId: string) => {
@@ -666,7 +657,7 @@ export const useStore = create<AppState>((set, get) => {
           },
         };
       });
-      triggerSave();
+      markChanged();
     },
 
     restoreTask: (taskId: string, columnId: string) => {
@@ -690,7 +681,7 @@ export const useStore = create<AppState>((set, get) => {
           },
         };
       });
-      triggerSave();
+      markChanged();
     },
 
     setShowArchived: (show) => set({ showArchived: show }),
@@ -726,7 +717,7 @@ export const useStore = create<AppState>((set, get) => {
           },
         },
       }));
-      triggerSave();
+      markChanged();
     },
 
     stopTimeTracking: (columnId: string, taskId: string) => {
@@ -775,7 +766,7 @@ export const useStore = create<AppState>((set, get) => {
           },
         },
       }));
-      triggerSave();
+      markChanged();
     },
 
     moveTask: (fromColumnId: string, toColumnId: string, taskId: string) => {
@@ -822,7 +813,7 @@ export const useStore = create<AppState>((set, get) => {
           },
         };
       });
-      triggerSave();
+      markChanged();
     },
 
     addComment: (columnId: string, taskId: string, text: string) => {
@@ -853,7 +844,7 @@ export const useStore = create<AppState>((set, get) => {
           },
         },
       }));
-      triggerSave();
+      markChanged();
     },
 
     deleteComment: (columnId: string, taskId: string, commentId: string) => {
@@ -878,7 +869,7 @@ export const useStore = create<AppState>((set, get) => {
           },
         },
       }));
-      triggerSave();
+      markChanged();
     },
 
     // Notes Actions
@@ -909,37 +900,25 @@ export const useStore = create<AppState>((set, get) => {
         },
         selectedNote: note.id,
       }));
-      triggerSave();
+      markChanged();
     },
 
     updateNote: (noteId: string, updates: Partial<Note>) => {
       const now = new Date().toISOString();
-
       set(state => ({
         data: {
           ...state.data,
           notes: state.data.notes.map(note => {
             if (note.id !== noteId) return note;
-
-            const newVersions = updates.content !== undefined && updates.content !== note.content
-              ? [...note.versions, {
-                id: generateId(),
-                timestamp: now,
-                action: 'Content updated',
-                content: note.content,
-              }]
-              : note.versions;
-
             return {
               ...note,
               ...updates,
-              versions: newVersions,
               updatedAt: now,
             };
           }),
         },
       }));
-      triggerSave();
+      markChanged();
     },
 
     deleteNote: (noteId: string) => {
@@ -950,7 +929,7 @@ export const useStore = create<AppState>((set, get) => {
         },
         selectedNote: state.selectedNote === noteId ? null : state.selectedNote,
       }));
-      triggerSave();
+      markChanged();
     },
 
     selectNote: (noteId) => set({ selectedNote: noteId }),
@@ -983,37 +962,25 @@ export const useStore = create<AppState>((set, get) => {
         },
         selectedScript: script.id,
       }));
-      triggerSave();
+      markChanged();
     },
 
     updateScript: (scriptId: string, updates: Partial<Script>) => {
       const now = new Date().toISOString();
-
       set(state => ({
         data: {
           ...state.data,
           scripts: state.data.scripts.map(script => {
             if (script.id !== scriptId) return script;
-
-            const newVersions = updates.code !== undefined && updates.code !== script.code
-              ? [...script.versions, {
-                id: generateId(),
-                timestamp: now,
-                action: 'Code updated',
-                code: script.code,
-              }]
-              : script.versions;
-
             return {
               ...script,
               ...updates,
-              versions: newVersions,
               updatedAt: now,
             };
           }),
         },
       }));
-      triggerSave();
+      markChanged();
     },
 
     deleteScript: (scriptId: string) => {
@@ -1024,7 +991,7 @@ export const useStore = create<AppState>((set, get) => {
         },
         selectedScript: state.selectedScript === scriptId ? null : state.selectedScript,
       }));
-      triggerSave();
+      markChanged();
     },
 
     selectScript: (scriptId) => set({ selectedScript: scriptId }),
@@ -1034,10 +1001,9 @@ export const useStore = create<AppState>((set, get) => {
       await get().loadWorkspace(get().currentWorkspace);
     },
 
-    saveToGitHub: async () => {
+saveToGitHub: async () => {
       const state = get();
       if (!state.isAuthenticated || !state.repoSelected) return;
-
       set({ isSyncing: true, syncStatus: 'Saving...' });
 
       try {
@@ -1056,6 +1022,94 @@ export const useStore = create<AppState>((set, get) => {
         });
         throw error;
       }
+    },
+    manualSaveTask: async (columnId: string, taskId: string) => {
+      const now = new Date().toISOString();
+
+      // Create version entry
+      set(state => ({
+        data: {
+          ...state.data,
+          kanban: {
+            ...state.data.kanban,
+            columns: state.data.kanban.columns.map(col =>
+              col.id === columnId
+                ? {
+                    ...col,
+                    tasks: col.tasks.map(task =>
+                      task.id === taskId
+                        ? {
+                            ...task,
+                            versions: [...task.versions, {
+                              id: generateId(),
+                              timestamp: now,
+                              action: 'Manual save',
+                              content: task.content,
+                            }],
+                          }
+                        : task
+                    ),
+                  }
+                : col
+            ),
+          },
+        },
+      }));
+
+      // Save to GitHub
+      await get().saveToGitHub();
+    },
+    manualSaveNote: async (noteId: string) => {
+      const now = new Date().toISOString();
+
+      // Create version entry
+      set(state => ({
+        data: {
+          ...state.data,
+          notes: state.data.notes.map(note =>
+            note.id === noteId
+              ? {
+                  ...note,
+                  versions: [...note.versions, {
+                    id: generateId(),
+                    timestamp: now,
+                    action: 'Manual save',
+                    content: note.content,
+                  }],
+                }
+              : note
+          ),
+        },
+      }));
+
+      // Save to GitHub
+      await get().saveToGitHub();
+    },
+    manualSaveScript: async (scriptId: string) => {
+      const now = new Date().toISOString();
+
+      // Create version entry
+      set(state => ({
+        data: {
+          ...state.data,
+          scripts: state.data.scripts.map(script =>
+            script.id === scriptId
+              ? {
+                  ...script,
+                  versions: [...script.versions, {
+                    id: generateId(),
+                    timestamp: now,
+                    action: 'Manual save',
+                    code: script.code,
+                  }],
+                }
+              : script
+          ),
+        },
+      }));
+
+      // Save to GitHub
+      await get().saveToGitHub();
     },
 
     exportWorkspace: () => {
@@ -1095,7 +1149,7 @@ export const useStore = create<AppState>((set, get) => {
         confirmModalOnConfirm: null,
       });
     },
-    
+
     updateSettings: (settings) => {
       set(state => ({
         data: {
@@ -1106,7 +1160,7 @@ export const useStore = create<AppState>((set, get) => {
           },
         },
       }));
-      triggerSave();
+      markChanged();
     },
   };
 });
