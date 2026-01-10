@@ -71,8 +71,10 @@ class GitHubAPI {
   }
 
   async listUserRepos(): Promise<any[]> {
-    const repos = await this.request('/user/repos?per_page=100&sort=updated');
-    return repos;
+    const repos = await this.request('/user/repos?per_page=100&sort=updated&private=isPrivate');
+    return repos.filter((repo: any) =>
+      /-data$/i.test(repo.name)
+    );
   }
 
   async checkRepo(): Promise<boolean> {
