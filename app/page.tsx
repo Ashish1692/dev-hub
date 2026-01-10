@@ -144,6 +144,45 @@ const Icons = {
   )
 };
 
+// Diff utility - calculates differences between two strings
+function calculateDiff(oldText: string, newText: string) {
+  const oldWords = oldText.split('');
+  const newWords = newText.split('');
+  const diff: Array<{ type: 'added' | 'removed' | 'unchanged'; text: string }> = [];
+
+  let i = 0;
+  let j = 0;
+
+  while (i < oldWords.length || j < newWords.length) {
+    if (i >= oldWords.length) {
+      // Rest is added
+      diff.push({ type: 'added', text: newWords.slice(j).join('') });
+      break;
+    } else if (j >= newWords.length) {
+      // Rest is removed
+      diff.push({ type: 'removed', text: oldWords.slice(i).join('') });
+      break;
+    } else if (oldWords[i] === newWords[j]) {
+      // Same character
+      let same = '';
+      while (i < oldWords.length && j < newWords.length && oldWords[i] === newWords[j]) {
+        same += oldWords[i];
+        i++;
+        j++;
+      }
+      diff.push({ type: 'unchanged', text: same });
+    } else {
+      // Different - mark as removed and added
+      diff.push({ type: 'removed', text: oldWords[i] });
+      diff.push({ type: 'added', text: newWords[j] });
+      i++;
+      j++;
+    }
+  }
+
+  return diff;
+}
+
 // Login Screen
 function LoginScreen() {
   return (
@@ -1306,6 +1345,9 @@ function TaskModal({ task, columnId, onClose }: { task: Task; columnId: string; 
   const [newAssignee, setNewAssignee] = useState('');
   const [newComment, setNewComment] = useState('');
   const [showVersions, setShowVersions] = useState(false);
+  const [compareVersionA, setCompareVersionA] = useState<string | null>(null);
+  const [compareVersionB, setCompareVersionB] = useState<string | null>(null);
+  const [showComparison, setShowComparison] = useState(false);
 
   const activeTimeEntry = task.timeTracking.find(entry => !entry.endTime);
 
@@ -1665,66 +1707,222 @@ function TaskModal({ task, columnId, onClose }: { task: Task; columnId: string; 
             Close
           </button>
         </div>
-
         {showVersions && (
           <div className="absolute inset-0 bg-gray-900 flex flex-col rounded-2xl">
             <div className="p-4 border-b border-gray-700 flex items-center justify-between">
               <h3 className="text-lg font-semibold">Version History</h3>
-              <button onClick={() => setShowVersions(false)} className="p-1 hover:bg-gray-700 rounded-lg">
+              <button onClick={() => {
+                setShowVersions(false);
+                setShowComparison(false);
+                setCompareVersionA(null);
+                setCompareVersionB(null);
+              }} className="p-1 hover:bg-gray-700 rounded-lg">
                 <Icons.Close />
               </button>
             </div>
-            <div className="flex-1 overflow-y-auto p-4 space-y-3">
-              {[...task.versions].reverse().map((version, index) => {
-                const versionNumber = task.versions.length - index;
-                const isLatest = index === 0;
 
-                return (
-                  <div
-                    key={version.id}
-                    className="border border-gray-700 rounded-lg p-4 hover:border-indigo-500 transition-colors"
+            {/* Version Comparison Controls */}
+            {!showComparison && task.versions.length > 1 && (
+              <div className="px-4 py-2 border-b-2 border-gray-700">
+                <div className="grid grid-cols-3 gap-x-2 mb-1 items-end">
+                  <div>
+                    <label className="block text-xs text-gray-400 mb-1">Version A (Left)</label>
+                    <select
+                      value={compareVersionA || ''}
+                      onChange={e => setCompareVersionA(e.target.value)}
+                      className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-sm"
+                    >
+                      <option value="">Select version...</option>
+                      {task.versions.map((v, idx) => (
+                        <option key={v.id} value={v.id}>
+                          {idx === 0 ? 'Latest' : `Version ${task.versions.length - idx}`} - {format(new Date(v.timestamp), 'PP')}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-400 mb-1">Version B (Right)</label>
+                    <select
+                      value={compareVersionB || ''}
+                      onChange={e => setCompareVersionB(e.target.value)}
+                      className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-sm"
+                    >
+                      <option value="">Select version...</option>
+                      {task.versions.map((v, idx) => (
+                        <option key={v.id} value={v.id}>
+                          {idx === 0 ? 'Latest' : `Version ${task.versions.length - idx}`} - {format(new Date(v.timestamp), 'PP')}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                {/* </div> */}
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => {
+                      const temp = compareVersionA;
+                      setCompareVersionA(compareVersionB);
+                      setCompareVersionB(temp);
+                    }}
+                    disabled={!compareVersionA || !compareVersionB}
+                    className="bg-gray-700 hover:bg-gray-600 disabled:opacity-50 px-4 py-2 rounded-lg text-sm"
                   >
-                    <div className="flex items-center justify-between mb-3">
-                      <span className="text-sm font-medium text-gray-200">
-                        {isLatest ? '✨ Latest Version' : `📌 Version ${versionNumber}`}
-                      </span>
-                      <div className="flex items-center gap-2">
-                        {!isLatest && (
-                          <button
-                            onClick={() => handleRestoreVersion(version)}
-                            className="flex items-center gap-2 text-sm text-indigo-400 hover:text-indigo-300 transition-colors"
-                          >
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                            </svg>
-                            Revert to this version
-                          </button>)} {!isLatest && <span>•</span>}
-                        <span className="text-xs text-gray-400">
-                          {format(new Date(version.timestamp), 'PPp')}
-                        </span>
-                      </div>
-                    </div>
+                    ⇄
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (compareVersionA && compareVersionB) setShowComparison(true);
+                    }}
+                    disabled={!compareVersionA || !compareVersionB}
+                    className="flex-1 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed px-4 py-2 rounded-lg text-sm"
+                  >
+                    Compare
+                  </button>
+                  </div>
+                </div>
+              </div>
+            )}
 
-                    <div className="space-y-2 mb-3">
-                      <div className="text-sm">
-                        <span className="font-medium text-gray-300">Action:</span>{' '}
-                        <span className="text-gray-400">{version.action}</span>
+            {/* Side-by-Side Comparison View */}
+            {showComparison && compareVersionA && compareVersionB && (
+              <div className="flex-1 overflow-y-auto p-4">
+                <div className="mb-4 flex items-center justify-between">
+                  <h4 className="text-lg font-semibold">Comparing Versions</h4>
+                  <button
+                    onClick={() => {
+                      setShowComparison(false);
+                      setCompareVersionA(null);
+                      setCompareVersionB(null);
+                    }}
+                    className="text-sm text-indigo-400 hover:text-indigo-300"
+                  >
+                    Close Comparison
+                  </button>
+                </div>
+
+                {(() => {
+                  const versionA = task.versions.find(v => v.id === compareVersionA);
+                  const versionB = task.versions.find(v => v.id === compareVersionB);
+
+                  const versionAIndex = task.versions.findIndex(
+                    v => v.id === versionA?.id
+                  );
+                  const versionBIndex = task.versions.findIndex(
+                    v => v.id === versionB?.id
+                  );
+
+                  if (!versionA || !versionB) return null;
+
+                  const contentA = versionA.content || '';
+                  const contentB = versionB.content || '';
+
+                  const linesA = contentA.split('\n');
+                  const linesB = contentB.split('\n');
+                  const maxLines = Math.max(linesA.length, linesB.length);
+
+                  return (
+                    <div>
+                      {/* Version Info */}
+                      <div className="grid grid-cols-2 gap-4 mb-4">
+                        <div className="bg-gray-800 p-3 rounded-lg h-fit">
+                          <div className='flex items-center justify-between'>
+                          <div className="text-sm font-medium mb-1">{versionAIndex === 0 ? 'Latest' : `Version ${task.versions.length - versionAIndex}`}</div>
+                          <div className="text-xs text-gray-400">
+                            {format(new Date(versionA.timestamp), 'PPp')}
+                            </div>
+                            </div>
+                          <div className="text-xs text-gray-500 mt-1">{versionA.action}</div>
+                        </div>
+                        <div className="bg-gray-800 p-3 rounded-lg h-fit">
+                          <div className='flex items-center justify-between'>
+                            <div className="text-sm font-medium mb-1">{versionBIndex === 0 ? 'Latest' : `Version ${task.versions.length - versionBIndex}`}</div>
+                            <div className="text-xs text-gray-400">
+                              {format(new Date(versionB.timestamp), 'PPp')}
+                            </div>
+                          </div>
+                          <div className="text-xs text-gray-500 mt-1">{versionB.action}</div>
+                        </div>
                       </div>
 
-                      {version.content && (
-                        <div className="text-sm">
-                          <span className="font-medium text-gray-300">Content Preview:</span>
-                          <div className="mt-1 bg-gray-800 p-2 rounded text-xs text-gray-400 max-h-20 overflow-y-auto font-mono">
-                            {version.content.substring(0, 200)}
-                            {version.content.length > 200 ? '...' : ''}
+                      {/* Side-by-Side Diff */}
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="bg-gray-800 p-4 rounded-lg">
+                          <div className="text-xs text-gray-400 mb-2 flex items-center gap-2">
+                            <span className="text-red-400">● Removed lines</span>
+                          </div>
+                          <div className="font-mono text-sm space-y-1 max-h-96 overflow-y-auto">
+                            {linesA.map((line, idx) => {
+                              const isRemoved = !linesB.includes(line);
+                              return (
+                                <div
+                                  key={idx}
+                                  className={isRemoved ? 'bg-red-900/30 text-red-400 px-2 py-1' : 'text-gray-400 px-2 py-1'}
+                                >
+                                  <span className="text-gray-600 mr-2">{idx + 1}</span>
+                                  {line || ' '}
+                                </div>
+                              );
+                            })}
                           </div>
                         </div>
-                      )}
+                        <div className="bg-gray-800 p-4 rounded-lg">
+                          <div className="text-xs text-gray-400 mb-2 flex items-center gap-2">
+                            <span className="text-green-400">● Added lines</span>
+                          </div>
+                          <div className="font-mono text-sm space-y-1 max-h-96 overflow-y-auto">
+                            {linesB.map((line, idx) => {
+                              const isAdded = !linesA.includes(line);
+                              return (
+                                <div
+                                  key={idx}
+                                  className={isAdded ? 'bg-green-900/30 text-green-400 px-2 py-1' : 'text-gray-300 px-2 py-1'}
+                                >
+                                  <span className="text-gray-600 mr-2">{idx + 1}</span>
+                                  {line || ' '}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      </div>
                     </div>
+                  );
+                })()}
+              </div>
+            )}
+
+            {/* Version List */}
+            {!showComparison && (
+              <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-gray-900 ">
+                {[...task.versions].reverse().map((version, index) => (
+                  <div key={version.id} className="border border-gray-700 p-3 rounded-lg hover:border-indigo-500 transition-colors">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm font-medium text-gray-200">
+                        {index === 0 ? 'Latest Version' : `Version ${task.versions.length - index}`}
+                      </span>
+                      <span className="text-xs text-gray-400">
+                        {format(new Date(version.timestamp), 'PPp')}
+                      </span>
+                    </div>
+                    <div className="text-sm mb-1">
+                      <span className="font-medium text-gray-300">Action:</span> <span className="text-gray-400">{version.action}</span>
+                    </div>
+                    <div className="bg-gray-800 p-2 rounded text-sm text-gray-300 mb-2 max-h-32 overflow-y-auto">
+                      {version.content || <em className="text-gray-500">Empty</em>}
+                    </div>
+                    {index > 0 && (
+                      <button
+                        onClick={() => handleRestoreVersion(version)}
+                        className="flex items-center gap-2 text-sm text-indigo-400 hover:text-indigo-300 transition-colors"
+                      ><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                </svg>
+                        Restore this version
+                      </button>
+                    )}
                   </div>
-                );
-              })}
-            </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -2249,8 +2447,8 @@ function ScriptsManager() {
                                   showLineNumbers={false}
                                 >
                                 </SyntaxHighlighter> */}
-                                  {version.code.substring(0, 200)}
-                                  {version.code.length > 200 ? '\n\n// ...' : ''}
+                                {version.code.substring(0, 200)}
+                                {version.code.length > 200 ? '\n\n// ...' : ''}
                               </span>
                             </div>
                           )}
