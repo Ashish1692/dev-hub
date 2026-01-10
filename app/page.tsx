@@ -1050,7 +1050,7 @@ function KanbanBoard() {
     const title = await openModal({
       title: 'Add column:',
       inputs: [
-        { name: 'column_name:', label: 'Column name:' }
+        { name: 'column_name', label: 'Column name:' }
       ]
     })
     if (title) addColumn(title.column_name);
