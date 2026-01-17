@@ -1948,9 +1948,9 @@ function TaskModal({ task, columnId, onClose }: { task: Task; columnId: string; 
                       className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-sm"
                     >
                       <option value="">Select version...</option>
-                      {task.versions.map((v, idx) => (
+                      {[...task.versions].reverse().map((v, idx) => (
                         <option key={v.id} value={v.id}>
-                          {idx === 0 ? 'Latest' : `Version ${task.versions.length - idx}`} - {format(new Date(v.timestamp), 'PP')}
+                          {idx === 0 ? 'Latest' : `Version ${task.versions.length - idx}`} - {format(new Date(v.timestamp), 'PPp')}
                         </option>
                       ))}
                     </select>
@@ -1963,9 +1963,9 @@ function TaskModal({ task, columnId, onClose }: { task: Task; columnId: string; 
                       className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-sm"
                     >
                       <option value="">Select version...</option>
-                      {task.versions.map((v, idx) => (
+                      {[...task.versions].reverse().map((v, idx) => (
                         <option key={v.id} value={v.id}>
-                          {idx === 0 ? 'Latest' : `Version ${task.versions.length - idx}`} - {format(new Date(v.timestamp), 'PP')}
+                          {idx === 0 ? 'Latest' : `Version ${task.versions.length - idx}`} - {format(new Date(v.timestamp), 'PPp')}
                         </option>
                       ))}
                     </select>
@@ -2346,9 +2346,9 @@ function NotesManager() {
                           className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-sm"
                         >
                           <option value="">Select version...</option>
-                          {note.versions.map((v, idx) => (
+                          {[...note.versions].reverse().map((v, idx) => (
                             <option key={v.id} value={v.id}>
-                              {idx === 0 ? 'Latest' : `Version ${note.versions.length - idx}`} - {format(new Date(v.timestamp), 'PP')}
+                              {idx === 0 ? 'Latest' : `Version ${note.versions.length - idx}`} - {format(new Date(v.timestamp), 'PPp')}
                             </option>
                           ))}
                         </select>
@@ -2361,9 +2361,9 @@ function NotesManager() {
                           className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-sm"
                         >
                           <option value="">Select version...</option>
-                          {note.versions.map((v, idx) => (
+                          {[...note.versions].reverse().map((v, idx) => (
                             <option key={v.id} value={v.id}>
-                              {idx === 0 ? 'Latest' : `Version ${note.versions.length - idx}`} - {format(new Date(v.timestamp), 'PP')}
+                              {idx === 0 ? 'Latest' : `Version ${note.versions.length - idx}`} - {format(new Date(v.timestamp), 'PPp')}
                             </option>
                           ))}
                         </select>
@@ -2761,9 +2761,9 @@ function ScriptsManager() {
                           className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-sm"
                         >
                           <option value="">Select version...</option>
-                          {script.versions.map((v, idx) => (
+                          {[...script.versions].reverse().map((v, idx) => (
                             <option key={v.id} value={v.id}>
-                              {idx === 0 ? 'Latest' : `Version ${script.versions.length - idx}`} - {format(new Date(v.timestamp), 'PP')}
+                              {idx === 0 ? 'Latest' : `Version ${script.versions.length - idx}`} - {format(new Date(v.timestamp), 'PPp')}
                             </option>
                           ))}
                         </select>
@@ -2776,9 +2776,9 @@ function ScriptsManager() {
                           className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-sm"
                         >
                           <option value="">Select version...</option>
-                          {script.versions.map((v, idx) => (
+                          {[...script.versions].reverse().map((v, idx) => (
                             <option key={v.id} value={v.id}>
-                              {idx === 0 ? 'Latest' : `Version ${script.versions.length - idx}`} - {format(new Date(v.timestamp), 'PP')}
+                              {idx === 0 ? 'Latest' : `Version ${script.versions.length - idx}`} - {format(new Date(v.timestamp), 'PPp')}
                             </option>
                           ))}
                         </select>
