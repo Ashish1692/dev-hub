@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { github, debounce } from './github';
+import { github } from './github';
 
 // Types
 export interface TimeEntry {
@@ -135,6 +135,12 @@ interface AppState {
   lastSynced: Date | null;
   hasUnsavedChanges: boolean;
 
+  // UI Preferences
+  uiPreferences: {
+    accentColor: string;
+    isZenMode: boolean;
+  };
+
   // Actions
   setSession: (user: any, accessToken: string) => void;
   clearSession: () => void;
@@ -196,6 +202,7 @@ interface AppState {
   setGlobalSearchOpen: (open: boolean) => void;
   setSettingsOpen: (open: boolean) => void;
   updateSettings: (settings: Partial<AppSettings>) => void;
+  updateUiPreferences: (prefs: Partial<{ accentColor: string; isZenMode: boolean }>) => void;
 
   // Confirmation Modal
   showConfirm: (title: string, message: string, onConfirm: () => void) => void;
@@ -282,6 +289,12 @@ export const useStore = create<AppState>((set, get) => {
     syncStatus: '',
     lastSynced: null,
     hasUnsavedChanges: false,
+
+    // UI Preferences Initial State
+    uiPreferences: {
+      accentColor: 'indigo',
+      isZenMode: false,
+    },
 
     // Session Actions
     setSession: (user: any, accessToken: string) => {
@@ -1161,6 +1174,15 @@ export const useStore = create<AppState>((set, get) => {
         },
       }));
       markChanged();
+    },
+
+    updateUiPreferences: (prefs) => {
+      set(state => ({
+        uiPreferences: {
+          ...state.uiPreferences,
+          ...prefs,
+        },
+      }));
     },
   };
 });

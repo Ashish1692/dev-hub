@@ -2,6 +2,7 @@
 
 import { useModalPrompt } from '@/components/ModalPromptProvider';
 import { Note, Script, Task, useStore } from '@/lib/store';
+import { themeColors } from '@/lib/themes';
 import { format } from 'date-fns';
 import { diffLines } from 'diff';
 import { signIn, signOut, useSession } from 'next-auth/react';
@@ -263,7 +264,7 @@ function LoginScreen() {
   return (
     <div className="flex-1 flex items-center justify-center p-4">
       <div className="bg-gray-800 p-8 rounded-2xl shadow-2xl max-w-md w-full text-center">
-        <div className="w-20 h-20 bg-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-6">
+        <div className="w-20 h-20 bg-primary-600 rounded-2xl flex items-center justify-center mx-auto mb-6">
           <Icons.GitHub />
         </div>
         <h1 className="text-3xl font-bold mb-2">DevHub</h1>
@@ -353,7 +354,7 @@ function RepoSelector() {
     return (
       <div className="flex-1 flex items-center justify-center">
         <div className="text-center">
-          <Icons.Sync className="w-10 h-10 animate-spin text-indigo-400 mx-auto mb-4" />
+          <Icons.Sync className="w-10 h-10 animate-spin text-primary-400 mx-auto mb-4" />
           <p className="text-gray-400">{syncStatus || 'Loading repositories...'}</p>
         </div>
       </div>
@@ -387,7 +388,7 @@ function RepoSelector() {
         <div className="p-4 border-b border-gray-700">
           <button
             onClick={() => setShowCreate(!showCreate)}
-            className="w-full bg-indigo-600 hover:bg-indigo-700 py-2.5 rounded-lg transition flex items-center justify-center gap-2"
+            className="w-full bg-primary-600 hover:bg-primary-700 py-2.5 rounded-lg transition flex items-center justify-center gap-2"
           >
             <Icons.Plus /> Create New Repository
           </button>
@@ -399,7 +400,7 @@ function RepoSelector() {
                 value={newRepoName}
                 onChange={e => setNewRepoName(e.target.value)}
                 placeholder="Repository name"
-                className="flex-1 bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 focus:outline-none focus:border-indigo-500"
+                className="flex-1 bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 focus:outline-none focus:border-primary-500"
               />
               <button
                 onClick={handleCreateRepo}
@@ -429,7 +430,7 @@ function RepoSelector() {
             value={filter}
             onChange={e => setFilter(e.target.value)}
             placeholder="Search repositories..."
-            className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 mb-3 focus:outline-none focus:border-indigo-500"
+            className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 mb-3 focus:outline-none focus:border-primary-500"
           />
 
           <div className="max-h-64 overflow-y-auto space-y-2 scrollbar-thin">
@@ -530,7 +531,7 @@ function Header() {
       <header className="bg-gray-800 border-b border-gray-700 px-4 py-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <h1 className="text-xl font-bold text-indigo-400">DevHub</h1>
+            <h1 className="text-xl font-bold text-primary-400">DevHub</h1>
             <div className="relative workspace-dropdown-container">
               <button
                 onClick={() => setWorkspaceDropdownOpen(!workspaceDropdownOpen)}
@@ -548,7 +549,7 @@ function Header() {
                     <div className="flex">
                       <button
                         onClick={handleCreateWorkspace}
-                        className="w-full flex items-center gap-2 px-2 py-2 text-sm text-indigo-400 hover:bg-indigo-900/30 rounded-lg transition-colors"
+                        className="w-full flex items-center gap-2 px-2 py-2 text-sm text-primary-400 hover:bg-primary-900/30 rounded-lg transition-colors"
                         title="Create New Workspace"
                       >
                         <Icons.Plus />
@@ -572,7 +573,7 @@ function Header() {
                         key={w}
                         onClick={() => handleWorkspaceSwitch(w)}
                         className={`w-full flex items-center gap-2 px-3 py-2 text-sm my-1 transition-colors ${w === currentWorkspace
-                          ? 'bg-indigo-900 text-white'
+                          ? 'bg-primary-900 text-white'
                           : 'text-gray-300 hover:bg-gray-700'
                           }`}
                       >
@@ -597,7 +598,7 @@ function Header() {
                 <button
                   key={tab}
                   onClick={() => setCurrentTab(tab)}
-                  className={`relative z-10 px-4 py-2 text-sm font-medium capitalize ${currentTab === tab ? 'text-white solute rounded-md bg-indigo-600' : 'text-gray-300'
+                  className={`relative z-10 px-4 py-2 text-sm font-medium capitalize ${currentTab === tab ? 'text-white solute rounded-md bg-primary-600' : 'text-gray-300'
                     }`}
                 >
                   {tab}
@@ -609,6 +610,15 @@ function Header() {
           </div>
 
           <div className="flex items-center gap-3">
+            <button
+              onClick={() => useStore.getState().setSettingsOpen(true)}
+              className="p-2 hover:bg-gray-700 rounded-lg transition"
+              title="Theme & Settings"
+            >
+              <Icons.Settings />
+            </button>
+            <div className="w-px h-6 bg-gray-700 mx-1"></div>
+
             <span className={`text-xs ${hasUnsavedChanges ? 'text-yellow-400' : 'text-gray-400'}`}>
               {syncStatus}
             </span>
@@ -665,6 +675,9 @@ function Header() {
       {showWorkspaceModal && (
         <WorkspaceModal onClose={() => setShowWorkspaceModal(false)} />
       )}
+      {useStore.getState().settingsOpen && (
+        <ThemeSettingsModal onClose={() => useStore.getState().setSettingsOpen(false)} />
+      )}
       {showImportExportModal && (
         <ImportExportModal onClose={() => setShowImportExportModalModal(false)} />
       )}
@@ -715,12 +728,12 @@ function WorkspaceModal({ onClose }: { onClose: () => void }) {
               value={newName}
               onChange={e => setNewName(e.target.value)}
               placeholder="New workspace name"
-              className="flex-1 bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 focus:outline-none focus:border-indigo-500"
+              className="flex-1 bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 focus:outline-none focus:border-primary-500"
               onKeyDown={e => e.key === 'Enter' && handleCreate()}
             />
             <button
               onClick={handleCreate}
-              className="bg-indigo-600 hover:bg-indigo-700 px-4 py-2 rounded-lg transition"
+              className="bg-primary-600 hover:bg-primary-700 px-4 py-2 rounded-lg transition"
             >
               Create
             </button>
@@ -742,6 +755,89 @@ function WorkspaceModal({ onClose }: { onClose: () => void }) {
               </div>
             ))}
           </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Theme Settings Modal
+function ThemeSettingsModal({ onClose }: { onClose: () => void }) {
+  const { uiPreferences, updateUiPreferences } = useStore();
+
+  const colors = [
+    { name: 'Indigo', value: 'indigo', class: 'bg-indigo-500' },
+    { name: 'Violet', value: 'violet', class: 'bg-violet-500' },
+    { name: 'Blue', value: 'blue', class: 'bg-blue-500' },
+    { name: 'Emerald', value: 'emerald', class: 'bg-emerald-500' },
+    { name: 'Rose', value: 'rose', class: 'bg-rose-500' },
+    { name: 'Amber', value: 'amber', class: 'bg-amber-500' },
+  ];
+
+  const currentAccent = uiPreferences?.accentColor || 'indigo';
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={onClose}>
+      <div className="bg-gray-800 rounded-2xl w-full max-w-sm mx-4 shadow-xl border border-gray-700" onClick={e => e.stopPropagation()}>
+        <div className="p-4 border-b border-gray-700 flex items-center justify-between">
+          <h3 className="text-lg font-semibold flex items-center gap-2">
+            <Icons.Settings /> Theme & UI
+          </h3>
+          <button onClick={onClose} className="p-1 hover:bg-gray-700 rounded-lg transition">
+            <Icons.Close />
+          </button>
+        </div>
+
+        <div className="p-6 space-y-6">
+          {/* Accent Color */}
+          <div>
+            <label className="block text-sm font-medium text-gray-400 mb-3">Accent Color</label>
+            <div className="grid grid-cols-3 gap-3">
+              {colors.map(color => (
+                <button
+                  key={color.value}
+                  onClick={() => updateUiPreferences({ accentColor: color.value })}
+                  className={`flex items-center gap-2 p-2 rounded-lg border transition-all ${currentAccent === color.value
+                    ? 'bg-gray-700 border-primary-500 ring-1 ring-primary-500'
+                    : 'bg-gray-750 border-transparent hover:bg-gray-700'
+                    }`}
+                >
+                  <div className={`w-4 h-4 rounded-full ${color.class}`}></div>
+                  <span className="text-sm">{color.name}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Zen Mode */}
+          <div>
+            <label className="block text-sm font-medium text-gray-400 mb-3">Interface Defaults</label>
+            <div className="flex items-center justify-between bg-gray-750 p-3 rounded-lg border border-gray-700/50">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-gray-700 rounded-lg">
+                  <svg className="w-4 h-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+                  </svg>
+                </div>
+                <div>
+                  <p className="font-medium text-sm">Zen Mode</p>
+                  <p className="text-xs text-gray-500">Hide sidebars by default</p>
+                </div>
+              </div>
+              <button
+                onClick={() => updateUiPreferences({ isZenMode: !uiPreferences?.isZenMode })}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${uiPreferences?.isZenMode ? 'bg-primary-600' : 'bg-gray-600'
+                  }`}
+              >
+                <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition ${uiPreferences?.isZenMode ? 'translate-x-6' : 'translate-x-1'
+                  }`} />
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div className="p-4 bg-gray-750/50 border-t border-gray-700 rounded-b-2xl">
+          <p className="text-xs text-gray-500 text-center">Changes are saved automatically for this session.</p>
         </div>
       </div>
     </div>
@@ -1224,7 +1320,7 @@ function KanbanBoard() {
           <select
             value={filterPriority}
             onChange={e => setFilterPriority(e.target.value)}
-            className="bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-indigo-500"
+            className="bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary-500"
           >
             <option value="all">All Priorities</option>
             <option value="high">High Priority</option>
@@ -1235,7 +1331,7 @@ function KanbanBoard() {
           <select
             value={filterLabel}
             onChange={e => setFilterLabel(e.target.value)}
-            className="bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-indigo-500"
+            className="bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary-500"
           >
             <option value="all">All Labels</option>
             {allLabels.map(label => (
@@ -1245,7 +1341,7 @@ function KanbanBoard() {
 
           <button
             onClick={() => setCalendarView(!calendarView)}
-            className={`px-3 py-2 text-sm rounded-lg transition flex items-center gap-2 ${calendarView ? 'bg-indigo-600 hover:bg-indigo-700' : 'bg-gray-700 hover:bg-gray-600'
+            className={`px-3 py-2 text-sm rounded-lg transition flex items-center gap-2 ${calendarView ? 'bg-primary-600 hover:bg-primary-700' : 'bg-gray-700 hover:bg-gray-600'
               }`}
             title={!calendarView ? 'Calendar View' : 'Board View'}
           >
@@ -1329,7 +1425,7 @@ function KanbanBoard() {
                         onChange={e => setColumnTitle(e.target.value)}
                         onBlur={() => handleSaveColumnName(column.id)}
                         onKeyDown={e => e.key === 'Enter' && handleSaveColumnName(column.id)}
-                        className="flex-1 bg-gray-700 px-2 py-1 rounded focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        className="flex-1 bg-gray-700 px-2 py-1 rounded focus:outline-none focus:ring-2 focus:ring-primary-500"
                         autoFocus
                       />
                     ) : (
@@ -1465,7 +1561,7 @@ function KanbanBoard() {
                       const columnId = data.kanban.columns[0]?.id;
                       if (columnId) restoreTask(task.id, columnId);
                     }}
-                    className="text-xs text-indigo-400 hover:text-indigo-300"
+                    className="text-xs text-primary-400 hover:text-primary-300"
                   >
                     Restore
                   </button>
@@ -1622,13 +1718,13 @@ function TaskModal({ task, columnId, onClose }: { task: Task; columnId: string; 
             <div className="flex bg-gray-700 rounded-lg p-1 mr-4">
               <button
                 onClick={() => setActiveTab('main')}
-                className={`px-4 py-1.5 text-sm rounded-md transition ${activeTab === 'main' ? 'bg-indigo-600 text-white shadow' : 'text-gray-300 hover:text-white'}`}
+                className={`px-4 py-1.5 text-sm rounded-md transition ${activeTab === 'main' ? 'bg-primary-600 text-white shadow' : 'text-gray-300 hover:text-white'}`}
               >
                 Main
               </button>
               <button
                 onClick={() => setActiveTab('details')}
-                className={`px-4 py-1.5 text-sm rounded-md transition ${activeTab === 'details' ? 'bg-indigo-600 text-white shadow' : 'text-gray-300 hover:text-white'}`}
+                className={`px-4 py-1.5 text-sm rounded-md transition ${activeTab === 'details' ? 'bg-primary-600 text-white shadow' : 'text-gray-300 hover:text-white'}`}
               >
                 Details & Comments
               </button>
@@ -1658,7 +1754,7 @@ function TaskModal({ task, columnId, onClose }: { task: Task; columnId: string; 
                       setPriority(val || null);
                       updateTask(columnId, task.id, { priority: val || null });
                     }}
-                    className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2.5 focus:outline-none focus:border-indigo-500 transition"
+                    className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2.5 focus:outline-none focus:border-primary-500 transition"
                   >
                     <option value="">No Priority</option>
                     <option value="low">Low Priority</option>
@@ -1677,7 +1773,7 @@ function TaskModal({ task, columnId, onClose }: { task: Task; columnId: string; 
                       setDueDate(e.target.value);
                       updateTask(columnId, task.id, { dueDate: e.target.value || null });
                     }}
-                    className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2.5 focus:outline-none focus:border-indigo-500 transition"
+                    className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2.5 focus:outline-none focus:border-primary-500 transition"
                   />
                 </div>
 
@@ -1783,7 +1879,7 @@ function TaskModal({ task, columnId, onClose }: { task: Task; columnId: string; 
                     <h4 className="text-sm font-semibold text-gray-300 flex items-center gap-2">
                       <Icons.Clock /> Time Tracking
                     </h4>
-                    <span className="text-xl font-bold text-indigo-400 font-mono">
+                    <span className="text-xl font-bold text-primary-400 font-mono">
                       {formatTime(task.totalTimeSpent)}
                     </span>
                   </div>
@@ -1832,10 +1928,10 @@ function TaskModal({ task, columnId, onClose }: { task: Task; columnId: string; 
                       value={newLabel}
                       onChange={e => setNewLabel(e.target.value)}
                       placeholder="Add label..."
-                      className="flex-1 bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-indigo-500"
+                      className="flex-1 bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary-500"
                       onKeyDown={e => e.key === 'Enter' && handleAddLabel()}
                     />
-                    <button onClick={handleAddLabel} className="bg-indigo-600 hover:bg-indigo-700 px-4 py-2 rounded-lg text-sm font-medium">Add</button>
+                    <button onClick={handleAddLabel} className="bg-primary-600 hover:bg-primary-700 px-4 py-2 rounded-lg text-sm font-medium">Add</button>
                   </div>
                 </div>
 
@@ -1856,10 +1952,10 @@ function TaskModal({ task, columnId, onClose }: { task: Task; columnId: string; 
                       value={newAssignee}
                       onChange={e => setNewAssignee(e.target.value)}
                       placeholder="Add assignee..."
-                      className="flex-1 bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-indigo-500"
+                      className="flex-1 bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary-500"
                       onKeyDown={e => e.key === 'Enter' && handleAddAssignee()}
                     />
-                    <button onClick={handleAddAssignee} className="bg-indigo-600 hover:bg-indigo-700 px-4 py-2 rounded-lg text-sm font-medium">Add</button>
+                    <button onClick={handleAddAssignee} className="bg-primary-600 hover:bg-primary-700 px-4 py-2 rounded-lg text-sm font-medium">Add</button>
                   </div>
                 </div>
               </div>
@@ -1905,12 +2001,12 @@ function TaskModal({ task, columnId, onClose }: { task: Task; columnId: string; 
                       value={newComment}
                       onChange={e => setNewComment(e.target.value)}
                       placeholder="Write a comment..."
-                      className="flex-1 bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 focus:outline-none focus:border-indigo-500 text-sm"
+                      className="flex-1 bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 focus:outline-none focus:border-primary-500 text-sm"
                       onKeyDown={e => e.key === 'Enter' && handleAddComment()}
                     />
                     <button
                       onClick={handleAddComment}
-                      className="bg-indigo-600 hover:bg-indigo-700 px-6 py-2 rounded-lg transition text-sm font-medium"
+                      className="bg-primary-600 hover:bg-primary-700 px-6 py-2 rounded-lg transition text-sm font-medium"
                     >
                       Send
                     </button>
@@ -1975,7 +2071,7 @@ function TaskModal({ task, columnId, onClose }: { task: Task; columnId: string; 
                       if (compareVersionA && compareVersionB) setShowComparison(true);
                     }}
                     disabled={!compareVersionA || !compareVersionB}
-                    className="bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed px-6 py-2 rounded-lg text-sm font-medium h-[38px]"
+                    className="bg-primary-600 hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed px-6 py-2 rounded-lg text-sm font-medium h-[38px]"
                   >
                     Compare
                   </button>
@@ -2028,7 +2124,7 @@ function TaskModal({ task, columnId, onClose }: { task: Task; columnId: string; 
               // Regular Version List
               <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-gray-900">
                 {[...task.versions].reverse().map((version, index) => (
-                  <div key={version.id} className="border border-gray-700 bg-gray-800 p-4 rounded-lg hover:border-indigo-500 transition-colors">
+                  <div key={version.id} className="border border-gray-700 bg-gray-800 p-4 rounded-lg hover:border-primary-500 transition-colors">
                     <div className="flex items-center justify-between mb-2">
                       <span className="text-sm font-bold text-gray-200">
                         {index === 0 ? 'Current Version' : `Version ${task.versions.length - index}`}
@@ -2047,7 +2143,7 @@ function TaskModal({ task, columnId, onClose }: { task: Task; columnId: string; 
                     {index > 0 && (
                       <button
                         onClick={() => handleRestoreVersion(version)}
-                        className="flex items-center gap-2 text-sm text-indigo-400 hover:text-indigo-300 transition-colors font-medium"
+                        className="flex items-center gap-2 text-sm text-primary-400 hover:text-primary-300 transition-colors font-medium"
                       >
                         <Icons.History /> Restore this version
                       </button>
@@ -2065,7 +2161,7 @@ function TaskModal({ task, columnId, onClose }: { task: Task; columnId: string; 
 
 // Notes Manager Component
 function NotesManager() {
-  const { data, selectedNote, selectNote, createNote, updateNote, deleteNote, selectedFolder, setSelectedFolder, showConfirm, manualSaveNote, isSyncing, hasUnsavedChanges } = useStore();
+  const { data, selectedNote, selectNote, createNote, updateNote, deleteNote, selectedFolder, setSelectedFolder, showConfirm, manualSaveNote, isSyncing, hasUnsavedChanges, uiPreferences } = useStore();
   const note = data.notes.find(n => n.id === selectedNote);
   const [showVersions, setShowVersions] = useState(false);
   const [viewMode, setViewMode] = useState<'editor' | 'preview'>('preview');
@@ -2146,75 +2242,78 @@ function NotesManager() {
 
   return (
     <div className="h-full flex">
-      <div className="w-80 bg-gray-800 border-r border-gray-700 flex flex-col">
-        {/* Folder Tabs */}
-        <div className="p-2 border-b border-gray-700 flex flex-wrap gap-1">
-          {folders.map(folder => (
-            <button
-              key={folder}
-              onClick={() => setSelectedFolder(folder)}
-              className={`px-3 py-1 text-xs rounded-lg transition ${selectedFolder === folder
-                ? 'bg-indigo-600 text-white'
-                : 'bg-gray-700 hover:bg-gray-600 text-gray-300'
-                }`}
-            >
-              {folder}
-            </button>
-          ))}
-        </div>
-        <div className="p-4 border-b border-gray-700">
-          <button
-            onClick={handleCreate}
-            className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-2 rounded-lg transition flex items-center justify-center gap-2"
-          >
-            <Icons.Plus /> New Note
-          </button>
-        </div>
-        <div className="flex-1 overflow-y-auto scrollbar-thin p-2 space-y-2">
-          {sortedNotes.length === 0 ? (
-            <p className="text-center text-gray-500 py-4">
-
-              {selectedFolder === 'All' ? 'No notes yet' : `No notes in ${selectedFolder}`}
-
-            </p>
-          ) : (
-            sortedNotes.map(n => (
-              <div
-                key={n.id}
-                onClick={() => selectNote(n.id)}
-                className={`p-3 rounded-lg cursor-pointer transition ${selectedNote === n.id ? 'bg-indigo-900' : 'bg-gray-700 hover:bg-gray-600'
+      {/* Sidebar - Hidden in Zen Mode unless no note is selected (force show list if empty) */}
+      {!uiPreferences?.isZenMode && (
+        <div className="w-80 bg-gray-800 border-r border-gray-700 flex flex-col">
+          {/* Folder Tabs */}
+          <div className="p-2 border-b border-gray-700 flex flex-wrap gap-1">
+            {folders.map(folder => (
+              <button
+                key={folder}
+                onClick={() => setSelectedFolder(folder)}
+                className={`px-3 py-1 text-xs rounded-lg transition ${selectedFolder === folder
+                  ? 'bg-primary-600 text-white'
+                  : 'bg-gray-700 hover:bg-gray-600 text-gray-300'
                   }`}
               >
-                <div className="flex items-center justify-between mb-1">
-                  <h4 className="font-medium truncate flex-1">{n.name}</h4>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      updateNote(n.id, { pinned: !n.pinned });
-                    }}
-                    className={`p-1 rounded transition ${n.pinned ? 'text-yellow-400' : 'text-gray-500 hover:text-yellow-400'}`}
-                    title={n.pinned ? 'Unpin note' : 'Pin note'}
-                  >
-                    <Icons.Pin />
-                  </button>
+                {folder}
+              </button>
+            ))}
+          </div>
+          <div className="p-4 border-b border-gray-700">
+            <button
+              onClick={handleCreate}
+              className="w-full bg-primary-600 hover:bg-primary-700 text-white py-2 rounded-lg transition flex items-center justify-center gap-2"
+            >
+              <Icons.Plus /> New Note
+            </button>
+          </div>
+          <div className="flex-1 overflow-y-auto scrollbar-thin p-2 space-y-2">
+            {sortedNotes.length === 0 ? (
+              <p className="text-center text-gray-500 py-4">
 
-                </div>
-                <p className="text-sm text-gray-400 truncate">{n.description || 'No description'}</p>
-                <div className="flex items-center gap-2 mt-1">
-                  <span className="text-xs text-gray-500">
-                    {format(new Date(n.updatedAt), 'PP')}
-                  </span>
-                  {n.folder && (
-                    <span className="text-xs bg-gray-600 px-2 py-0.5 rounded">
-                      {n.folder}
+                {selectedFolder === 'All' ? 'No notes yet' : `No notes in ${selectedFolder}`}
+
+              </p>
+            ) : (
+              sortedNotes.map(n => (
+                <div
+                  key={n.id}
+                  onClick={() => selectNote(n.id)}
+                  className={`p-3 rounded-lg cursor-pointer transition ${selectedNote === n.id ? 'bg-primary-900' : 'bg-gray-700 hover:bg-gray-600'
+                    }`}
+                >
+                  <div className="flex items-center justify-between mb-1">
+                    <h4 className="font-medium truncate flex-1">{n.name}</h4>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        updateNote(n.id, { pinned: !n.pinned });
+                      }}
+                      className={`p-1 rounded transition ${n.pinned ? 'text-yellow-400' : 'text-gray-500 hover:text-yellow-400'}`}
+                      title={n.pinned ? 'Unpin note' : 'Pin note'}
+                    >
+                      <Icons.Pin />
+                    </button>
+
+                  </div>
+                  <p className="text-sm text-gray-400 truncate">{n.description || 'No description'}</p>
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className="text-xs text-gray-500">
+                      {format(new Date(n.updatedAt), 'PP')}
                     </span>
-                  )}
+                    {n.folder && (
+                      <span className="text-xs bg-gray-600 px-2 py-0.5 rounded">
+                        {n.folder}
+                      </span>
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))
-          )}
+              ))
+            )}
+          </div>
         </div>
-      </div>
+      )}
 
       <div className="flex-1 flex flex-col p-6 h-full overflow-hidden bg-gray-900 relative">
         {note ? (
@@ -2373,7 +2472,7 @@ function NotesManager() {
                           if (compareVersionA && compareVersionB) setShowComparison(true);
                         }}
                         disabled={!compareVersionA || !compareVersionB}
-                        className="bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed px-6 py-2 rounded-lg text-sm font-medium h-[38px]"
+                        className="bg-primary-600 hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed px-6 py-2 rounded-lg text-sm font-medium h-[38px]"
                       >
                         Compare
                       </button>
@@ -2394,7 +2493,7 @@ function NotesManager() {
                             <h4 className="font-semibold text-gray-300">Comparing Versions</h4>
                             <button
                               onClick={() => setShowComparison(false)}
-                              className="text-xs text-indigo-400 hover:text-indigo-300 underline"
+                              className="text-xs text-primary-400 hover:text-primary-300 underline"
                             >
                               Back to list
                             </button>
@@ -2473,20 +2572,20 @@ function NotesManager() {
             </div>
             <button
               onClick={handleCreate}
-              className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded-lg transition flex items-center gap-2 mt-2"
+              className="bg-primary-600 hover:bg-primary-700 text-white px-6 py-2 rounded-lg transition flex items-center gap-2 mt-2"
             >
               <Icons.Plus /> Create Note
             </button>
           </div>
         )}
       </div>
-    </div>
+    </div >
   );
 }
 
 // Scripts Manager Component
 function ScriptsManager() {
-  const { data, selectedScript, selectScript, createScript, updateScript, deleteScript, showConfirm, manualSaveScript, isSyncing, hasUnsavedChanges } = useStore();
+  const { data, selectedScript, selectScript, createScript, updateScript, deleteScript, showConfirm, manualSaveScript, isSyncing, hasUnsavedChanges, uiPreferences } = useStore();
   const script = data.scripts.find(s => s.id === selectedScript);
   const [showVersions, setShowVersions] = useState(false);
   const [viewMode, setViewMode] = useState<'editor' | 'preview'>('preview');
@@ -2582,36 +2681,38 @@ function ScriptsManager() {
 
   return (
     <div className="h-full flex">
-      <div className="w-80 bg-gray-800 border-r border-gray-700 flex flex-col">
-        <div className="p-4 border-b border-gray-700">
-          <button
-            onClick={handleCreate}
-            className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-2 rounded-lg transition flex items-center justify-center gap-2"
-          >
-            <Icons.Plus /> New Script
-          </button>
-        </div>
-        <div className="flex-1 overflow-y-auto scrollbar-thin p-2 space-y-2">
-          {data.scripts.length === 0 ? (
-            <p className="text-center text-gray-500 py-4">No scripts yet</p>
-          ) : (
-            data.scripts.map(s => (
-              <div
-                key={s.id}
-                onClick={() => selectScript(s.id)}
-                className={`p-3 rounded-lg cursor-pointer transition ${selectedScript === s.id ? 'bg-indigo-900' : 'bg-gray-700 hover:bg-gray-600'
-                  }`}
-              >
-                <div className="flex items-center justify-between">
-                  <h4 className="font-medium truncate">{s.name}</h4>
-                  <span className="text-xs text-gray-500 capitalize">{s.language}</span>
+      {!uiPreferences?.isZenMode && (
+        <div className="w-80 bg-gray-800 border-r border-gray-700 flex flex-col">
+          <div className="p-4 border-b border-gray-700">
+            <button
+              onClick={handleCreate}
+              className="w-full bg-primary-600 hover:bg-primary-700 text-white py-2 rounded-lg transition flex items-center justify-center gap-2"
+            >
+              <Icons.Plus /> New Script
+            </button>
+          </div>
+          <div className="flex-1 overflow-y-auto scrollbar-thin p-2 space-y-2">
+            {data.scripts.length === 0 ? (
+              <p className="text-center text-gray-500 py-4">No scripts yet</p>
+            ) : (
+              data.scripts.map(s => (
+                <div
+                  key={s.id}
+                  onClick={() => selectScript(s.id)}
+                  className={`p-3 rounded-lg cursor-pointer transition ${selectedScript === s.id ? 'bg-primary-900' : 'bg-gray-700 hover:bg-gray-600'
+                    }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <h4 className="font-medium truncate">{s.name}</h4>
+                    <span className="text-xs text-gray-500 capitalize">{s.language}</span>
+                  </div>
+                  <p className="text-sm text-gray-400 truncate">{s.description || 'No description'}</p>
                 </div>
-                <p className="text-sm text-gray-400 truncate">{s.description || 'No description'}</p>
-              </div>
-            ))
-          )}
+              ))
+            )}
+          </div>
         </div>
-      </div>
+      )}
 
       <div className="flex-1 flex flex-col p-6 h-full overflow-hidden bg-gray-900 relative">
         {script ? (
@@ -2788,7 +2889,7 @@ function ScriptsManager() {
                           if (compareVersionA && compareVersionB) setShowComparison(true);
                         }}
                         disabled={!compareVersionA || !compareVersionB}
-                        className="bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed px-6 py-2 rounded-lg text-sm font-medium h-[38px]"
+                        className="bg-primary-600 hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed px-6 py-2 rounded-lg text-sm font-medium h-[38px]"
                       >
                         Compare
                       </button>
@@ -2809,7 +2910,7 @@ function ScriptsManager() {
                             <h4 className="font-semibold text-gray-300">Comparing Versions</h4>
                             <button
                               onClick={() => setShowComparison(false)}
-                              className="text-xs text-indigo-400 hover:text-indigo-300 underline"
+                              className="text-xs text-primary-400 hover:text-primary-300 underline"
                             >
                               Back to list
                             </button>
@@ -2831,7 +2932,7 @@ function ScriptsManager() {
                       return (
                         <div
                           key={version.id}
-                          className="border border-gray-700 rounded-lg p-4 bg-gray-800 hover:border-indigo-500 transition-colors"
+                          className="border border-gray-700 rounded-lg p-4 bg-gray-800 hover:border-primary-500 transition-colors"
                         >
                           <div className="flex items-center justify-between mb-3">
                             <span className="text-sm font-medium text-gray-200">
@@ -2862,7 +2963,7 @@ function ScriptsManager() {
                           {!isLatest && (
                             <button
                               onClick={() => handleRestoreVersion(version)}
-                              className="flex items-center gap-2 text-sm text-indigo-400 hover:text-indigo-300 transition-colors mt-2"
+                              className="flex items-center gap-2 text-sm text-primary-400 hover:text-primary-300 transition-colors mt-2"
                             >
                               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
@@ -2889,7 +2990,7 @@ function ScriptsManager() {
             </div>
             <button
               onClick={handleCreate}
-              className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded-lg transition flex items-center gap-2 mt-2"
+              className="bg-primary-600 hover:bg-primary-700 text-white px-6 py-2 rounded-lg transition flex items-center gap-2 mt-2"
             >
               <Icons.Plus /> Create Script
             </button>
@@ -2931,7 +3032,19 @@ function StatusBar() {
 // Main App Component
 export default function Home() {
   const { data: session, status } = useSession();
-  const { isAuthenticated, repoSelected, currentTab, setSession, globalSearchOpen, setGlobalSearchOpen, setCurrentTab, saveToGitHub, accessToken: currentAccessToken } = useStore();
+  const { isAuthenticated, repoSelected, currentTab, setSession, globalSearchOpen, setGlobalSearchOpen, setCurrentTab, saveToGitHub, accessToken: currentAccessToken, uiPreferences } = useStore();
+
+  // Apply Theme Colors
+  useEffect(() => {
+    const accent = uiPreferences?.accentColor || 'indigo';
+    const theme = themeColors[accent] || themeColors['indigo'];
+    if (theme) {
+      Object.entries(theme).forEach(([shade, value]) => {
+        document.documentElement.style.setProperty(`--primary-${shade}`, value);
+      });
+    }
+  }, [uiPreferences?.accentColor]);
+
   useEffect(() => {
     if (session?.user && session?.accessToken) {
       // Only set session if token has changed or we're not authenticated to prevent workspace reload on window focus
@@ -2981,7 +3094,7 @@ export default function Home() {
   if (status === 'loading') {
     return (
       <div className="h-screen flex items-center justify-center">
-        <Icons.Sync className="w-10 h-10 animate-spin text-indigo-400" />
+        <Icons.Sync className="w-10 h-10 animate-spin text-primary-400" />
       </div>
     );
   }

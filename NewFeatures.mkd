@@ -166,3 +166,68 @@ const triggerNotification = (title: string, body: string) => {
 1. **Set**: User sets a date/time in the UI, which is saved to the store via `updateTask` or `updateNote`.
 2. **Monitor**: The `setInterval` in `page.tsx` compares the current time against these saved dates.
 3. **Notify**: If a match is found and `reminderSent` is false, the system triggers the `Notification` API and updates the store to prevent repeat alerts.
+
+
+Theme & UI Customization Plan
+Goal
+Allow users to customize the look and feel of DevHub by changing the Accent Color (currently hardcoded as Indigo) and enabling a Zen Mode for distraction-free work.
+
+User Review Required
+IMPORTANT
+
+Scope Confirmation: This plan focuses on Accent Color customization (e.g., switching from Indigo to Blue, Purple, Green, etc.) and not a full Light/Dark mode toggle, as the app is built with a dark-first design.
+
+Zen Mode: This will hide the sidebar (folder list/script list) in the Notes and Scripts managers when active, expanding the editor to full width.
+
+Proposed Changes
+1. Global Styles & Configuration
+[MODIFY]
+globals.css
+Define CSS variables for the primary color palette.
+:root {
+  --primary-50: 238 242 255;  /* indigo-50 */
+  --primary-100: 224 231 255; /* indigo-100 */
+  /* ... up to 900 */
+  --primary-500: 99 102 241;  /* indigo-500 (Main) */
+  --primary-600: 79 70 229;   /* indigo-600 (Hover) */
+  /* ... */
+}
+[MODIFY]
+tailwind.config.ts
+Extend the theme to map primary colors to these variables.
+theme: {
+  extend: {
+    colors: {
+      primary: {
+        50: 'rgb(var(--primary-50) / <alpha-value>)',
+        // ...
+        600: 'rgb(var(--primary-600) / <alpha-value>)',
+      }
+    }
+  }
+}
+2. State Management
+[MODIFY]
+store.ts
+Add uiPreferences to
+AppState
+.
+accentColor: string (default 'indigo')
+isZenMode: boolean (default false)
+3. Component Refactoring
+[MODIFY]
+page.tsx
+Refactor: Find and replace all instances of indigo (e.g., bg-indigo-600, text-indigo-400) with primary (e.g., bg-primary-600, text-primary-400).
+Zen Mode: conditionally render the Sidebar in
+NotesManager
+ and
+ScriptsManager
+ based on isZenMode state.
+Settings Modal: Create a new modal accessible from the header to:
+Pick a color (presets: Indigo, Violet, Blue, Emerald, Rose, Amber).
+Toggle Zen Mode.
+Verification Plan
+Manual Verification
+Color Switching: Open Settings, select "Emerald". Verify all buttons, links, and active states turn Green.
+Zen Mode: Toggle Zen Mode. Verify sidebars disappear and editor expands.
+Persistence: Reload the page (Zustand persist) and ensure settings remain.
