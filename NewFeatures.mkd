@@ -1,0 +1,168 @@
+To incorporate the system notification logic into your existing application, you can create a dedicated hook or utility that monitors your task list and triggers a notification when a task's `dueDate` is reached.
+
+The application uses a `useStore` hook to manage tasks within columns. You can implement an effect in a high-level component (like `page.txt`) that periodically checks the `dueDate` of all tasks.
+
+### 1. Create a Notification Utility
+
+First, define a reusable function to handle the permission request and notification delivery.
+
+```javascript
+// lib/notifications.ts
+export const sendTaskNotification = (title, message) => {
+  if (!("Notification" in window)) return;
+
+  Notification.requestPermission().then(permission => {
+    if (permission === "granted") {
+      new Notification(title, {
+        body: message,
+        // You can point this to a static path in your public folder
+        icon: '/logo.png'
+      });
+    }
+  });
+};
+
+```
+
+### 2. Implement the Due Date Checker
+
+In your main `page.tsx`, you can add a `useEffect` that runs on a timer to scan your tasks for any that have reached their due date.
+
+```javascript
+// Inside your Home/Page component in page.txt
+const { data } = useStore();
+
+useEffect(() => {
+  const checkDueDates = () => {
+    const now = new Date();
+
+    data.columns.forEach(column => {
+      column.tasks.forEach(task => {
+        if (task.dueDate && !task.archived) {
+          const dueDate = new Date(task.dueDate);
+
+          // Check if the task is due now (within the last minute)
+          // and hasn't been notified yet
+          if (dueDate <= now && (now - dueDate) < 60000) {
+            sendTaskNotification(
+              "Task Due!",
+              `The task "${task.title}" is now due.`
+            );
+          }
+        }
+      });
+    });
+  };
+
+  // Check every minute
+  const interval = setInterval(checkDueDates, 60000);
+  return () => clearInterval(interval);
+}, [data.columns]);
+
+```
+
+### Key Considerations for your Architecture:
+
+* **State Access**: Since your tasks are nested within `columns` in the store, you must iterate through `data.columns` to find individual `Task` objects.
+* **Avoiding Duplicate Notifications**: The logic above triggers if a task became due within the last minute. To prevent repeated notifications for the same task, you should add a `notified: boolean` property to your `Task` interface in `store.txt` and update it once the notification is sent.
+* **User Interaction**: You can keep your `notification.onclick` logic to redirect users to a specific task view or external URL as shown in your original snippet.
+
+
+
+
+
+
+
+To implement a reminder feature for tasks, notes, and scripts in your codebase, you can leverage your existing **Zustand store** to monitor specific dates and the **Web Notifications API** to alert the user.
+
+Since your `Task` object already contains a `dueDate` field, you can extend this logic to `Note` and `Script` objects.
+
+### 1. Update the Store Schema
+
+First, add a `reminderDate` field to your interfaces in `store.txt` so that each entity can track when a notification should be sent.
+
+```typescript
+// lib/store.ts
+
+export interface Task {
+  // ... existing fields
+  dueDate: string | null;
+  reminderSent?: boolean; // Track if we already notified the user
+}
+
+export interface Note {
+  // ... existing fields
+  reminderDate: string | null; // Add this
+  reminderSent?: boolean;
+}
+
+export interface Script {
+  // ... existing fields
+  reminderDate: string | null; // Add this
+  reminderSent?: boolean;
+}
+
+```
+
+### 2. Create a Notification Manager
+
+In your main `page.tsx`, implement a `useEffect` that acts as a background worker. It will periodically scan your data for items that have reached their reminder time.
+
+```tsx
+// page.tsx
+
+useEffect(() => {
+  const checkReminders = () => {
+    const { data, updateTask, updateNote, updateScript } = useStore.getState();
+    const now = new Date();
+
+    // 1. Check Tasks
+    data.kanban.columns.forEach(col => {
+      col.tasks.forEach(task => {
+        if (task.dueDate && !task.reminderSent) {
+          const dueDate = new Date(task.dueDate);
+          if (dueDate <= now) {
+            triggerNotification(`Task Due: ${task.title}`, task.content);
+            updateTask(col.id, task.id, { reminderSent: true });
+          }
+        }
+      });
+    });
+
+    // 2. Check Notes
+    data.notes.forEach(note => {
+      if (note.reminderDate && !note.reminderSent) {
+        const reminderDate = new Date(note.reminderDate);
+        if (reminderDate <= now) {
+          triggerNotification(`Note Reminder: ${note.name}`, note.description);
+          updateNote(note.id, { reminderSent: true });
+        }
+      }
+    });
+  };
+
+  const interval = setInterval(checkReminders, 60000); // Check every minute
+  return () => clearInterval(interval);
+}, []);
+
+const triggerNotification = (title: string, body: string) => {
+  if (Notification.permission === "granted") {
+    new Notification(title, { body, icon: '/logo.png' });
+  } else if (Notification.permission !== "denied") {
+    Notification.requestPermission();
+  }
+};
+
+```
+
+### 3. Implementation Details
+
+* **Accessing Data**: The logic uses `data.kanban.columns` to iterate through tasks and `data.notes` or `data.scripts` for other entities, matching the workspace structure defined in your store.
+* **State Updates**: Use the existing `updateTask`, `updateNote`, and `updateScript` actions to mark `reminderSent` as `true`. This prevents the user from being spammed every minute once a deadline passes.
+* **User Interface**: You will need to add a Date/Time picker in your task/note editor components to allow users to set the `dueDate` or `reminderDate`.
+
+### Summary of Workflow
+
+1. **Set**: User sets a date/time in the UI, which is saved to the store via `updateTask` or `updateNote`.
+2. **Monitor**: The `setInterval` in `page.tsx` compares the current time against these saved dates.
+3. **Notify**: If a match is found and `reminderSent` is false, the system triggers the `Notification` API and updates the store to prevent repeat alerts.

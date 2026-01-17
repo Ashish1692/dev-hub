@@ -1,14 +1,15 @@
 'use client';
 
+import { useModalPrompt } from '@/components/ModalPromptProvider';
+import { Note, Script, Task, useStore } from '@/lib/store';
+import { format } from 'date-fns';
+import { diffLines } from 'diff';
+import { signIn, signOut, useSession } from 'next-auth/react';
 import { useEffect, useState } from 'react';
-import { useSession, signIn, signOut } from 'next-auth/react';
 import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
-import { format } from 'date-fns';
-import { useStore, Task, Note, Script } from '@/lib/store';
-import { useModalPrompt } from '@/components/ModalPromptProvider';
+import remarkGfm from 'remark-gfm';
 
 // Icons
 const Icons = {
@@ -176,45 +177,85 @@ const Icons = {
       <polyline points="7 3 7 8 15 8" />
     </svg>
   ),
+  Download: () => (
+    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+    </svg>
+  ),
+  IconNote: ({ className }: { className?: string }) => (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+    </svg>
+  ),
 };
 
-// Diff utility - calculates differences between two strings
-function calculateDiff(oldText: string, newText: string) {
-  const oldWords = oldText.split('');
-  const newWords = newText.split('');
-  const diff: Array<{ type: 'added' | 'removed' | 'unchanged'; text: string }> = [];
+// Version Comparison Component (Split View)
+function VersionComparisonView({ oldContent, newContent }: { oldContent: string; newContent: string }) {
+  const changes = diffLines(oldContent || '', newContent || '');
+  const leftSide: React.ReactNode[] = [];
+  const rightSide: React.ReactNode[] = [];
+  let leftLineNumber = 1;
+  let rightLineNumber = 1;
 
-  let i = 0;
-  let j = 0;
-
-  while (i < oldWords.length || j < newWords.length) {
-    if (i >= oldWords.length) {
-      // Rest is added
-      diff.push({ type: 'added', text: newWords.slice(j).join('') });
-      break;
-    } else if (j >= newWords.length) {
-      // Rest is removed
-      diff.push({ type: 'removed', text: oldWords.slice(i).join('') });
-      break;
-    } else if (oldWords[i] === newWords[j]) {
-      // Same character
-      let same = '';
-      while (i < oldWords.length && j < newWords.length && oldWords[i] === newWords[j]) {
-        same += oldWords[i];
-        i++;
-        j++;
-      }
-      diff.push({ type: 'unchanged', text: same });
-    } else {
-      // Different - mark as removed and added
-      diff.push({ type: 'removed', text: oldWords[i] });
-      diff.push({ type: 'added', text: newWords[j] });
-      i++;
-      j++;
+  changes.forEach((part: any, index: number) => {
+    let lines = part.value.split('\n');
+    // If the last element is empty string (due to trailing newline), drop it to avoid extra empty line
+    if (lines.length > 0 && lines[lines.length - 1] === '') {
+      lines.pop();
     }
-  }
 
-  return diff;
+    if (part.added) {
+      lines.forEach((line: string, i: number) => {
+        leftSide.push(<div key={`L-add-${index}-${i}`} className="h-6 w-full bg-gray-900/20"></div>);
+        rightSide.push(
+          <div key={`R-add-${index}-${i}`} className="h-6 w-full bg-green-900/20 text-green-100 flex items-center">
+            <span className="w-8 text-[10px] text-green-700/50 select-none text-right pr-2 border-r border-green-800/20 mr-2 shrink-0 font-mono">{rightLineNumber++}</span>
+            <span className="whitespace-pre truncate font-mono text-xs">{line}</span>
+          </div>
+        );
+      });
+    } else if (part.removed) {
+      lines.forEach((line: string, i: number) => {
+        leftSide.push(
+          <div key={`L-rem-${index}-${i}`} className="h-6 w-full bg-red-900/20 text-red-100 flex items-center">
+            <span className="w-8 text-[10px] text-red-700/50 select-none text-right pr-2 border-r border-red-800/20 mr-2 shrink-0 font-mono">{leftLineNumber++}</span>
+            <span className="whitespace-pre truncate font-mono text-xs">{line}</span>
+          </div>
+        );
+        rightSide.push(<div key={`R-rem-${index}-${i}`} className="h-6 w-full bg-gray-900/20"></div>);
+      });
+    } else {
+      lines.forEach((line: string, i: number) => {
+        leftSide.push(
+          <div key={`L-eq-${index}-${i}`} className="h-6 w-full text-gray-400 flex items-center hover:bg-gray-800/30">
+            <span className="w-8 text-[10px] text-gray-700 select-none text-right pr-2 border-r border-gray-800 mr-2 shrink-0 font-mono">{leftLineNumber++}</span>
+            <span className="whitespace-pre truncate font-mono text-xs">{line}</span>
+          </div>
+        );
+        rightSide.push(
+          <div key={`R-eq-${index}-${i}`} className="h-6 w-full text-gray-400 flex items-center hover:bg-gray-800/30">
+            <span className="w-8 text-[10px] text-gray-700 select-none text-right pr-2 border-r border-gray-800 mr-2 shrink-0 font-mono">{rightLineNumber++}</span>
+            <span className="whitespace-pre truncate font-mono text-xs">{line}</span>
+          </div>
+        );
+      });
+    }
+  });
+
+  return (
+    <div className="flex-1 overflow-hidden flex flex-col h-full border border-gray-700 rounded-lg bg-[#1e1e1e]">
+      <div className="flex border-b border-gray-700 bg-gray-800 text-xs font-semibold text-gray-400">
+        <div className="flex-1 p-2 text-center border-r border-gray-700">Original / Previous</div>
+        <div className="flex-1 p-2 text-center">Modified / Current</div>
+      </div>
+      <div className="flex-1 overflow-auto scrollbar-thin">
+        <div className="flex min-h-full">
+          <div className="flex-1 border-r border-gray-800 min-w-0 bg-[#1e1e1e]">{leftSide}</div>
+          <div className="flex-1 min-w-0 bg-[#1e1e1e]">{rightSide}</div>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 // Login Screen
@@ -582,20 +623,20 @@ function Header() {
               onClick={syncNow}
               disabled={isSyncing}
               className="p-2 hover:bg-gray-700 rounded-lg transition disabled:opacity-50"
-              title="Sync with GitHub"
+              title="Pull data from GitHub"
             >
               <Icons.Sync className={`w-5 h-5 ${isSyncing ? 'animate-spin' : ''}`} />
             </button>
-            <button
+            {/* <button
               onClick={saveToGitHub}
               disabled={isSyncing || !hasUnsavedChanges}
               // Added specific styling for the disabled state
               className="p-2 transition-colors text-gray-300 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:text-gray-300"
               title={hasUnsavedChanges ? "Manual Save to GitHub" : "No changes to save"}
             >
-              {/* Optional: Animate the icon if it is currently syncing */}
+              // Optional: Animate the icon if it is currently syncing
               <Icons.Save className={isSyncing ? "animate-pulse" : ""} />
-            </button>
+            </button> */}
             <button
               onClick={() => setShowImportExportModalModal(true)}
               className="p-2 hover:bg-gray-700 rounded-lg transition"
@@ -1448,11 +1489,11 @@ function KanbanBoard() {
 
 // Enhanced Task Modal with Tabbed Layout and Split View
 function TaskModal({ task, columnId, onClose }: { task: Task; columnId: string; onClose: () => void }) {
-  const { updateTask, deleteTask, addComment, deleteComment, archiveTask, startTimeTracking, stopTimeTracking, showConfirm } = useStore();
+  const { updateTask, deleteTask, addComment, deleteComment, archiveTask, startTimeTracking, stopTimeTracking, showConfirm, isSyncing, manualSaveTask, hasUnsavedChanges } = useStore();
 
   // State
   const [activeTab, setActiveTab] = useState<'main' | 'details'>('main');
-  const [viewMode, setViewMode] = useState<'editor' | 'preview'>('editor');
+  const [viewMode, setViewMode] = useState<'editor' | 'preview'>('preview');
 
   // Form State
   const [title, setTitle] = useState(task.title);
@@ -1683,6 +1724,14 @@ function TaskModal({ task, columnId, onClose }: { task: Task; columnId: string; 
                     </button>
                   </div>
                   <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => manualSaveTask(columnId, task.id)}
+                      className="p-2 transition-colors text-gray-300 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:text-gray-300"
+                      disabled={isSyncing || !hasUnsavedChanges}
+                      title='Save & Create Version'
+                    >
+                      <Icons.Save className={isSyncing ? "animate-pulse" : ""} />
+                    </button>
                     <button
                       onClick={handleCopyContent}
                       className="flex items-center gap-1 px-3 py-1.5 text-xs text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg transition"
@@ -2016,10 +2065,13 @@ function TaskModal({ task, columnId, onClose }: { task: Task; columnId: string; 
 
 // Notes Manager Component
 function NotesManager() {
-  const { data, selectedNote, selectNote, createNote, updateNote, deleteNote, selectedFolder, setSelectedFolder, showConfirm } = useStore();
+  const { data, selectedNote, selectNote, createNote, updateNote, deleteNote, selectedFolder, setSelectedFolder, showConfirm, manualSaveNote, isSyncing, hasUnsavedChanges } = useStore();
   const note = data.notes.find(n => n.id === selectedNote);
   const [showVersions, setShowVersions] = useState(false);
-  const [viewMode, setViewMode] = useState<'editor' | 'preview'>('editor');
+  const [viewMode, setViewMode] = useState<'editor' | 'preview'>('preview');
+  const [compareVersionA, setCompareVersionA] = useState<string | null>(null);
+  const [compareVersionB, setCompareVersionB] = useState<string | null>(null);
+  const [showComparison, setShowComparison] = useState(false);
   const { openModal } = useModalPrompt();
   const folders = ['All', 'General', 'Work', 'Personal', 'Ideas', 'Archive'];
 
@@ -2134,49 +2186,29 @@ function NotesManager() {
                   }`}
               >
                 <div className="flex items-center justify-between mb-1">
-
                   <h4 className="font-medium truncate flex-1">{n.name}</h4>
-
                   <button
-
                     onClick={(e) => {
-
                       e.stopPropagation();
-
                       updateNote(n.id, { pinned: !n.pinned });
-
                     }}
-
                     className={`p-1 rounded transition ${n.pinned ? 'text-yellow-400' : 'text-gray-500 hover:text-yellow-400'}`}
-
                     title={n.pinned ? 'Unpin note' : 'Pin note'}
-
                   >
-
                     <Icons.Pin />
-
                   </button>
 
                 </div>
                 <p className="text-sm text-gray-400 truncate">{n.description || 'No description'}</p>
                 <div className="flex items-center gap-2 mt-1">
-
                   <span className="text-xs text-gray-500">
-
                     {format(new Date(n.updatedAt), 'PP')}
-
                   </span>
-
                   {n.folder && (
-
                     <span className="text-xs bg-gray-600 px-2 py-0.5 rounded">
-
                       {n.folder}
-
                     </span>
-
                   )}
-
                 </div>
               </div>
             ))
@@ -2184,41 +2216,72 @@ function NotesManager() {
         </div>
       </div>
 
-      <div className="flex-1 flex flex-col relative">
+      <div className="flex-1 flex flex-col p-6 h-full overflow-hidden bg-gray-900 relative">
         {note ? (
-          <>
-            <div className="p-4 border-b border-gray-700 space-y-3">
-              <input
-                type="text"
-                value={note.name}
-                onChange={e => updateNote(note.id, { name: e.target.value })}
-                placeholder="Note name"
-                className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 focus:outline-none focus:border-indigo-500 text-lg font-semibold"
-              />
-              <input
-                type="text"
-                value={note.description}
-                onChange={e => updateNote(note.id, { description: e.target.value })}
-                placeholder="Description"
-                className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 focus:outline-none focus:border-indigo-500 text-sm"
-              />
+          <div className="flex flex-col h-full bg-gray-800 rounded-2xl border border-gray-700 shadow-xl overflow-hidden">
+            {/* Header Section */}
+            <div className="flex flex-col shrink-0 bg-gray-800">
+              {/* Row 1: Title & Actions */}
+              <div className="flex items-center justify-between px-6 py-4 border-b border-gray-700/50">
+                <input
+                  type="text"
+                  value={note.name}
+                  onChange={e => updateNote(note.id, { name: e.target.value })}
+                  placeholder="Untitled Note"
+                  className="text-xl font-bold bg-transparent focus:outline-none text-white placeholder-gray-500 min-w-0 flex-1 mr-4"
+                />
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => manualSaveNote(note.id)}
+                    className="flex items-center gap-2 px-3 py-1.5 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed"
+                    disabled={isSyncing || !hasUnsavedChanges}
+                    title='Save & Create Version (Alt+S)'
+                  >
+                    <Icons.Save className={`w-4 h-4 ${isSyncing ? "animate-pulse" : ""}`} />
+                    <span>Save</span>
+                  </button>
 
+                  <div className="w-px h-6 bg-gray-700 mx-1"></div>
 
-              <div className="flex gap-3 items-center">
-                <button
-                  onClick={() => updateNote(note.id, { pinned: !note.pinned })}
-                  className={`flex items-center gap-1 text-xs transition ${note.pinned ? 'text-yellow-400' : 'text-gray-400 hover:text-yellow-400'
-                    }`}
-                >
-                  <Icons.Pin /> {note.pinned ? 'Pinned' : 'Pin'}
-                </button>
-                {/* Folder Selector */}
-                <div>
+                  <button
+                    onClick={() => setViewMode(viewMode === 'preview' ? 'editor' : 'preview')}
+                    className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg transition"
+                    title={viewMode === 'preview' ? "Switch to Editor (Ctrl+1 / Cmd+1)" : "Switch to Preview (Ctrl+2 / Cmd+2)"}
+                  >
+                    {viewMode === 'preview' ? <Icons.Edit /> : <Icons.Eye />}
+                  </button>
+                  <button
+                    onClick={() => updateNote(note.id, { pinned: !note.pinned })}
+                    className={`p-2 rounded-lg transition ${note.pinned ? 'text-yellow-400 hover:bg-yellow-900/20' : 'text-gray-400 hover:text-yellow-400 hover:bg-gray-700'}`}
+                    title={note.pinned ? 'Unpin note' : 'Pin note'}
+                  >
+                    <Icons.Pin />
+                  </button>
+                  <button
+                    onClick={() => setShowVersions(true)}
+                    className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg transition"
+                    title="Version History"
+                  >
+                    <Icons.History />
+                  </button>
+                  <button
+                    onClick={handleDelete}
+                    className="p-2 text-red-400 hover:text-red-300 hover:bg-red-900/20 rounded-lg transition"
+                    title="Delete Note"
+                  >
+                    <Icons.Trash />
+                  </button>
+                </div>
+              </div>
+
+              {/* Row 2: Folder & Description */}
+              <div className="flex items-center border-b border-gray-700/50 bg-gray-900/20">
+                <div className="border-r border-gray-700/50 relative">
                   <select
                     title='Category'
                     value={note.folder}
                     onChange={e => updateNote(note.id, { folder: e.target.value })}
-                    className="cursor-pointer w-50 bg-gray-700 border border-gray-600 rounded-lg p-[2px] focus:outline-none focus:border-indigo-500 text-sm"
+                    className="appearance-none bg-transparent pl-4 pr-10 py-3 text-sm focus:outline-none cursor-pointer hover:bg-gray-700/30 transition-colors text-gray-300"
                   >
                     <option value="General">General</option>
                     <option value="Work">Work</option>
@@ -2226,54 +2289,30 @@ function NotesManager() {
                     <option value="Ideas">Ideas</option>
                     <option value="Archive">Archive</option>
                   </select>
+                  <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-gray-500">
+                    <Icons.ChevronDown />
+                  </div>
                 </div>
-
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => setViewMode(viewMode === 'preview' ? 'editor' : 'preview')}
-                    className="flex items-center gap-2 px-3 py-1.5 text-xs rounded-lg transition bg-gray-700 text-gray-200 hover:bg-gray-900 border border-gray-600"
-                    title={viewMode === 'preview' ? "Switch to Editor (Ctrl+1 / Cmd+1)" : "Switch to Preview (Ctrl+2 / Cmd+2)"}
-                  >
-                    {viewMode === 'preview' ? (
-                      <>
-                        <Icons.Edit />
-                        <span>Edit</span>
-                      </>
-                    ) : (
-                      <>
-                        <Icons.Eye />
-                        <span>Preview</span>
-                      </>
-                    )}
-                  </button>
-                </div>
-
-                <button
-                  onClick={() => setShowVersions(true)}
-                  className="text-xs text-indigo-400 hover:text-indigo-300 flex items-center gap-1"
-                >
-                  <Icons.History /> Versions ({note.versions.length})
-                </button>
-                <button
-                  onClick={handleDelete}
-                  className="text-xs text-red-400 hover:text-red-300 ml-auto"
-                >
-                  Delete Note
-                </button>
+                <input
+                  type="text"
+                  value={note.description}
+                  onChange={e => updateNote(note.id, { description: e.target.value })}
+                  placeholder="Add a description..."
+                  className="flex-1 px-4 py-3 bg-transparent focus:outline-none text-sm text-gray-300 placeholder-gray-600"
+                />
               </div>
             </div>
 
-            <div className="flex-1 flex flex-col overflow-hidden">
-
+            <div className="flex-1 flex flex-col overflow-hidden relative bg-gray-900/50">
               {viewMode === 'editor' ? (
                 <textarea
                   value={note.content}
                   onChange={e => updateNote(note.id, { content: e.target.value })}
-                  className="flex-1 p-4 bg-transparent focus:outline-none resize-none font-mono text-sm overflow-y-auto scrollbar-thin"
+                  className="flex-1 p-6 bg-transparent focus:outline-none resize-none font-mono text-sm overflow-y-auto scrollbar-thin leading-relaxed text-gray-300"
                   placeholder="Start writing..."
                 />
               ) : (
-                <div className="flex-1 p-4 overflow-y-auto scrollbar-thin markdown-preview">
+                <div className="flex-1 p-6 overflow-y-auto scrollbar-thin markdown-preview prose prose-invert max-w-none">
                   <ReactMarkdown remarkPlugins={[remarkGfm]}>
                     {note.content || '*Start writing...*'}
                   </ReactMarkdown>
@@ -2282,69 +2321,162 @@ function NotesManager() {
             </div>
 
             {showVersions && (
-              <div className="absolute inset-0 bg-gray-900 flex flex-col">
-                <div className="p-4 border-b border-gray-700 flex items-center justify-between">
-                  <h3 className="text-lg font-semibold">Version History</h3>
-                  <button onClick={() => setShowVersions(false)} className="p-1 hover:bg-gray-700 rounded-lg">
+              <div className="absolute inset-0 bg-gray-900 z-10 flex flex-col">
+                <div className="p-4 border-b border-gray-700 flex items-center justify-between bg-gray-800">
+                  <h3 className="text-lg font-semibold flex items-center gap-2"><Icons.History /> Version History</h3>
+                  <button onClick={() => {
+                    setShowVersions(false)
+                    setShowComparison(false);
+                    setCompareVersionA(null);
+                    setCompareVersionB(null);
+                  }} className="p-1 hover:bg-gray-700 rounded-lg">
                     <Icons.Close />
                   </button>
                 </div>
-                <div className="flex-1 overflow-y-auto p-4 space-y-3">
-                  {[...note.versions].reverse().map((version, index) => {
-                    const versionNumber = note.versions.length - index;
-                    const isLatest = index === 0;
 
-                    return (
-                      <div
-                        key={version.id}
-                        className="border border-gray-700 rounded-lg p-4 hover:border-green-500 transition-colors"
+                {/* Version Comparison Controls */}
+                {!showComparison && note.versions.length > 1 && (
+                  <div className="px-6 py-3 border-b border-gray-700 bg-gray-800/50">
+                    <div className="flex gap-4 items-end">
+                      <div className="flex-1">
+                        <label className="block text-xs text-gray-400 mb-1">Version A (Original / Previous)</label>
+                        <select
+                          value={compareVersionA || ''}
+                          onChange={e => setCompareVersionA(e.target.value)}
+                          className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-sm"
+                        >
+                          <option value="">Select version...</option>
+                          {note.versions.map((v, idx) => (
+                            <option key={v.id} value={v.id}>
+                              {idx === 0 ? 'Latest' : `Version ${note.versions.length - idx}`} - {format(new Date(v.timestamp), 'PP')}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="flex-1">
+                        <label className="block text-xs text-gray-400 mb-1">Version B (Modified / Current)</label>
+                        <select
+                          value={compareVersionB || ''}
+                          onChange={e => setCompareVersionB(e.target.value)}
+                          className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-sm"
+                        >
+                          <option value="">Select version...</option>
+                          {note.versions.map((v, idx) => (
+                            <option key={v.id} value={v.id}>
+                              {idx === 0 ? 'Latest' : `Version ${note.versions.length - idx}`} - {format(new Date(v.timestamp), 'PP')}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <button
+                        onClick={() => {
+                          if (compareVersionA && compareVersionB) setShowComparison(true);
+                        }}
+                        disabled={!compareVersionA || !compareVersionB}
+                        className="bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed px-6 py-2 rounded-lg text-sm font-medium h-[38px]"
                       >
-                        <div className="flex items-center justify-between mb-3">
-                          <span className="text-sm font-medium text-gray-200">
-                            {isLatest ? '✨ Latest Version' : `📝 Version ${versionNumber}`}
-                          </span>
-                          <span className="text-xs text-gray-400">
-                            {format(new Date(version.timestamp), 'PPp')}
-                          </span>
-                        </div>
+                        Compare
+                      </button>
+                    </div>
+                  </div>
+                )}
 
-                        <div className="space-y-2 mb-3">
-                          <div className="text-sm">
-                            <span className="font-medium text-gray-300">Action:</span>{' '}
-                            <span className="text-gray-400">{version.action}</span>
+                {/* Side-by-Side Comparison View */}
+                {showComparison && compareVersionA && compareVersionB ? (
+                  <div className="flex-1 overflow-hidden p-6 bg-gray-900 border-t border-gray-700">
+                    {(() => {
+                      const versionA = note.versions.find(v => v.id === compareVersionA);
+                      const versionB = note.versions.find(v => v.id === compareVersionB);
+                      if (!versionA || !versionB) return null;
+                      return (
+                        <div className="h-full flex flex-col">
+                          <div className="flex justify-between mb-2">
+                            <h4 className="font-semibold text-gray-300">Comparing Versions</h4>
+                            <button
+                              onClick={() => setShowComparison(false)}
+                              className="text-xs text-indigo-400 hover:text-indigo-300 underline"
+                            >
+                              Back to list
+                            </button>
+                          </div>
+                          <VersionComparisonView
+                            oldContent={versionA.content}
+                            newContent={versionB.content}
+                          />
+                        </div>
+                      );
+                    })()}
+                  </div>
+                ) : (
+                  <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-gray-900">
+                    {[...note.versions].reverse().map((version, index) => {
+                      const versionNumber = note.versions.length - index;
+                      const isLatest = index === 0;
+
+                      return (
+                        <div
+                          key={version.id}
+                          className="border border-gray-700 rounded-lg p-4 bg-gray-800 hover:border-green-500 transition-colors"
+                        >
+                          <div className="flex items-center justify-between mb-3">
+                            <span className="text-sm font-medium text-gray-200">
+                              {isLatest ? '✨ Latest Version' : `📝 Version ${versionNumber}`}
+                            </span>
+                            <span className="text-xs text-gray-400">
+                              {format(new Date(version.timestamp), 'PPp')}
+                            </span>
                           </div>
 
-                          <div className="text-sm">
-                            <span className="font-medium text-gray-300">Content Preview:</span>
-                            <div className="mt-1 bg-gray-800 p-3 rounded text-sm text-gray-300 max-h-32 overflow-y-auto markdown-preview break-words">
-                              <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                                {version.content.length > 300 ? `${version.content.slice(0, 300)}…` : version.content}
-                              </ReactMarkdown>
+                          <div className="space-y-2 mb-3">
+                            <div className="text-sm">
+                              <span className="font-medium text-gray-400">Action:</span>{' '}
+                              <span className="text-gray-300">{version.action}</span>
+                            </div>
+
+                            <div className="text-sm">
+                              <span className="font-medium text-gray-400 block mb-1">Content Preview:</span>
+                              <div className="bg-gray-900 p-3 rounded text-sm text-gray-400 max-h-32 overflow-y-auto markdown-preview break-words">
+                                <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                                  {version.content.length > 300 ? `${version.content.slice(0, 300)}…` : version.content}
+                                </ReactMarkdown>
+                              </div>
                             </div>
                           </div>
-                        </div>
 
-                        {!isLatest && (
-                          <button
-                            onClick={() => handleRestoreVersion(version)}
-                            className="flex items-center gap-2 text-sm text-green-400 hover:text-green-300 transition-colors"
-                          >
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                            </svg>
-                            Revert to this version
-                          </button>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
+                          {!isLatest && (
+                            <button
+                              onClick={() => handleRestoreVersion(version)}
+                              className="flex items-center gap-2 text-sm text-green-400 hover:text-green-300 transition-colors mt-2"
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                              </svg>
+                              Revert to this version
+                            </button>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             )}
-          </>
+          </div>
         ) : (
-          <div className="flex-1 flex items-center justify-center text-gray-500">
-            Select a note or create a new one
+          <div className="flex-1 flex flex-col items-center justify-center text-gray-500 gap-4">
+            <div className="w-20 h-20 bg-gray-800 rounded-2xl flex items-center justify-center">
+              <Icons.IconNote className="w-10 h-10 opacity-50" />
+            </div>
+            <div className="text-center">
+              <h3 className="text-lg font-medium text-gray-400 mb-1">No Note Selected</h3>
+              <p className="text-sm text-gray-600">Select a note from the sidebar or create a new one</p>
+            </div>
+            <button
+              onClick={handleCreate}
+              className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded-lg transition flex items-center gap-2 mt-2"
+            >
+              <Icons.Plus /> Create Note
+            </button>
           </div>
         )}
       </div>
@@ -2354,10 +2486,13 @@ function NotesManager() {
 
 // Scripts Manager Component
 function ScriptsManager() {
-  const { data, selectedScript, selectScript, createScript, updateScript, deleteScript, showConfirm } = useStore();
+  const { data, selectedScript, selectScript, createScript, updateScript, deleteScript, showConfirm, manualSaveScript, isSyncing, hasUnsavedChanges } = useStore();
   const script = data.scripts.find(s => s.id === selectedScript);
   const [showVersions, setShowVersions] = useState(false);
-  const [viewMode, setViewMode] = useState<'editor' | 'preview'>('editor');
+  const [viewMode, setViewMode] = useState<'editor' | 'preview'>('preview');
+  const [compareVersionA, setCompareVersionA] = useState<string | null>(null);
+  const [compareVersionB, setCompareVersionB] = useState<string | null>(null);
+  const [showComparison, setShowComparison] = useState(false);
   const { openModal } = useModalPrompt();
 
   const languages = [
@@ -2393,6 +2528,23 @@ function ScriptsManager() {
     if (script) {
       navigator.clipboard.writeText(script.code);
     }
+  };
+
+  const handleDownload = () => {
+    if (!script) return;
+    const blob = new Blob([script.code], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    const extMap: Record<string, string> = {
+      javascript: 'js', typescript: 'ts', python: 'py', bash: 'sh',
+      sql: 'sql', html: 'html', css: 'css', json: 'json',
+      markdown: 'md', yaml: 'yaml', go: 'go', rust: 'rs'
+    };
+    const ext = extMap[script.language] || 'txt';
+    a.download = `${script.name.replace(/\s+/g, '_')}.${ext}`;
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   type ScriptVersion = Script['versions'][0];
@@ -2450,91 +2602,114 @@ function ScriptsManager() {
                 className={`p-3 rounded-lg cursor-pointer transition ${selectedScript === s.id ? 'bg-indigo-900' : 'bg-gray-700 hover:bg-gray-600'
                   }`}
               >
-                <h4 className="font-medium truncate">{s.name}</h4>
+                <div className="flex items-center justify-between">
+                  <h4 className="font-medium truncate">{s.name}</h4>
+                  <span className="text-xs text-gray-500 capitalize">{s.language}</span>
+                </div>
                 <p className="text-sm text-gray-400 truncate">{s.description || 'No description'}</p>
-                <span className="text-xs text-gray-500">{s.language}</span>
               </div>
             ))
           )}
         </div>
       </div>
 
-      <div className="flex-1 flex flex-col relative">
+      <div className="flex-1 flex flex-col p-6 h-full overflow-hidden bg-gray-900 relative">
         {script ? (
-          <>
-            <div className="p-4 border-b border-gray-700 space-y-3">
-              <div className="flex gap-3">
+          <div className="flex flex-col h-full bg-gray-800 rounded-2xl border border-gray-700 shadow-xl overflow-hidden">
+            {/* Header Section */}
+            <div className="flex flex-col shrink-0 bg-gray-800">
+              {/* Row 1: Title & Actions */}
+              <div className="flex items-center justify-between px-6 py-4 border-b border-gray-700/50">
                 <input
                   type="text"
                   value={script.name}
                   onChange={e => updateScript(script.id, { name: e.target.value })}
-                  placeholder="Script name"
-                  className="flex-1 bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 focus:outline-none focus:border-indigo-500 text-lg font-semibold"
+                  placeholder="Untitled Script"
+                  className="text-xl font-bold bg-transparent focus:outline-none text-white placeholder-gray-500 min-w-0 flex-1 mr-4"
                 />
-                <select
-                  value={script.language}
-                  onChange={e => updateScript(script.id, { language: e.target.value })}
-                  className="bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 focus:outline-none focus:border-indigo-500"
-                >
-                  {languages.map(lang => (
-                    <option key={lang} value={lang}>{lang}</option>
-                  ))}
-                </select>
-              </div>
-              <input
-                type="text"
-                value={script.description}
-                onChange={e => updateScript(script.id, { description: e.target.value })}
-                placeholder="Description"
-                className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 focus:outline-none focus:border-indigo-500 text-sm"
-              />
-              <div className="flex gap-3">
-                <button
-                  onClick={() => setShowVersions(true)}
-                  className="text-xs text-indigo-400 hover:text-indigo-300 flex items-center gap-1"
-                >
-                  <Icons.History /> Versions ({script.versions.length})
-                </button>
-                <button
-                  onClick={handleCopy}
-                  className="text-xs text-green-400 hover:text-green-300 flex items-center gap-1"
-                >
-                  <Icons.Copy /> Copy Code
-                </button>
-                <div className="flex items-center gap-x-2">
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => manualSaveScript(script.id)}
+                    className="flex items-center gap-2 px-3 py-1.5 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed"
+                    disabled={isSyncing || !hasUnsavedChanges}
+                    title='Save & Create Version (Alt+S)'
+                  >
+                    <Icons.Save className={`w-4 h-4 ${isSyncing ? "animate-pulse" : ""}`} />
+                    <span>Save</span>
+                  </button>
+
+                  <div className="w-px h-6 bg-gray-700 mx-1"></div>
+
                   <button
                     onClick={() => setViewMode(viewMode == 'preview' ? 'editor' : 'preview')}
-                    className="flex items-center gap-2 px-3 py-1.5 text-xs rounded-lg transition bg-gray-700 text-gray-200 hover:bg-gray-900 border border-gray-600"
-                    title={viewMode == 'preview' ? "Switch to Editor (Ctrl+1 / Cmd+1)" : "Switch to Preview (Ctrl+2 / Cmd+2)"}
+                    className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg transition"
+                    title={viewMode == 'preview' ? "Switch to Editor" : "Switch to Preview"}
                   >
-                    {viewMode == 'preview' ? (
-                      <>
-                        <Icons.Edit />
-                        <span>Edit</span>
-                      </>
-                    ) : (
-                      <>
-                        <Icons.Eye />
-                        <span>Preview</span>
-                      </>
-                    )}
+                    {viewMode == 'preview' ? <Icons.Edit /> : <Icons.Eye />}
+                  </button>
+                  <button
+                    onClick={handleCopy}
+                    className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg transition"
+                    title="Copy Code"
+                  >
+                    <Icons.Copy />
+                  </button>
+                  <button
+                    onClick={handleDownload}
+                    className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg transition"
+                    title="Download File"
+                  >
+                    <Icons.Download />
+                  </button>
+                  <button
+                    onClick={() => setShowVersions(true)}
+                    className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg transition"
+                    title="Version History"
+                  >
+                    <Icons.History />
+                  </button>
+                  <button
+                    onClick={handleDelete}
+                    className="p-2 text-red-400 hover:text-red-300 hover:bg-red-900/20 rounded-lg transition"
+                    title="Delete Script"
+                  >
+                    <Icons.Trash />
                   </button>
                 </div>
-                <button
-                  onClick={handleDelete}
-                  className="text-xs text-red-400 hover:text-red-300 ml-auto"
-                >
-                  Delete Script
-                </button>
+              </div>
+
+              {/* Row 2: Language & Description */}
+              <div className="flex items-center border-b border-gray-700/50 bg-gray-900/20">
+                <div className="border-r border-gray-700/50 relative">
+                  <select
+                    value={script.language}
+                    onChange={e => updateScript(script.id, { language: e.target.value })}
+                    className="appearance-none bg-transparent pl-4 pr-10 py-3 text-sm focus:outline-none cursor-pointer hover:bg-gray-700/30 transition-colors text-gray-300 capitalize"
+                  >
+                    {languages.map(lang => (
+                      <option key={lang} value={lang} className="bg-gray-800">{lang}</option>
+                    ))}
+                  </select>
+                  <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-gray-500">
+                    <Icons.ChevronDown />
+                  </div>
+                </div>
+                <input
+                  type="text"
+                  value={script.description}
+                  onChange={e => updateScript(script.id, { description: e.target.value })}
+                  placeholder="Add a description..."
+                  className="flex-1 px-4 py-3 bg-transparent focus:outline-none text-sm text-gray-300 placeholder-gray-600"
+                />
               </div>
             </div>
 
-            <div className="flex-1 flex flex-col overflow-hidden">
+            <div className="flex-1 flex flex-col overflow-hidden relative bg-gray-900/50">
               {viewMode === 'editor' ? (
                 <textarea
                   value={script.code}
                   onChange={e => updateScript(script.id, { code: e.target.value })}
-                  className="flex-1 p-4 bg-transparent focus:outline-none resize-none font-mono text-sm overflow-y-auto scrollbar-thin"
+                  className="flex-1 p-6 bg-transparent focus:outline-none resize-none font-mono text-sm overflow-y-auto scrollbar-thin leading-relaxed text-gray-300"
                   placeholder="// Start coding..."
                   spellCheck={false}
                 />
@@ -2545,9 +2720,11 @@ function ScriptsManager() {
                     style={vscDarkPlus}
                     customStyle={{
                       margin: 0,
-                      padding: '1rem',
+                      padding: '1.5rem',
                       background: 'transparent',
                       minHeight: '100%',
+                      fontSize: '0.875rem',
+                      lineHeight: '1.5',
                     }}
                     showLineNumbers
                   >
@@ -2557,89 +2734,165 @@ function ScriptsManager() {
               )}
             </div>
 
+            {/* Versions Modal Overlay */}
             {showVersions && (
-              <div className="absolute inset-0 bg-gray-900 flex flex-col">
-                <div className="p-4 border-b border-gray-700 flex items-center justify-between">
-                  <h3 className="text-lg font-semibold">Version History</h3>
-                  <button onClick={() => setShowVersions(false)} className="p-1 hover:bg-gray-700 rounded-lg">
+              <div className="absolute inset-0 bg-gray-900 z-10 flex flex-col">
+                <div className="p-4 border-b border-gray-700 flex items-center justify-between bg-gray-800">
+                  <h3 className="text-lg font-semibold flex items-center gap-2"><Icons.History /> Version History</h3>
+                  <button onClick={() => {
+                    setShowVersions(false);
+                    setShowComparison(false);
+                    setCompareVersionA(null);
+                    setCompareVersionB(null);
+                  }} className="p-1 hover:bg-gray-700 rounded-lg">
                     <Icons.Close />
                   </button>
                 </div>
-                <div className="flex-1 overflow-y-auto p-4 space-y-3">
-                  {[...script.versions].reverse().map((version, index) => {
-                    const versionNumber = script.versions.length - index;
-                    const isLatest = index === 0;
 
-                    return (
-                      <div
-                        key={version.id}
-                        className="border border-gray-700 rounded-lg p-4 hover:border-purple-500 transition-colors"
+                {/* Version Comparison Controls */}
+                {!showComparison && script.versions.length > 1 && (
+                  <div className="px-6 py-3 border-b border-gray-700 bg-gray-800/50">
+                    <div className="flex gap-4 items-end">
+                      <div className="flex-1">
+                        <label className="block text-xs text-gray-400 mb-1">Version A (Original / Previous)</label>
+                        <select
+                          value={compareVersionA || ''}
+                          onChange={e => setCompareVersionA(e.target.value)}
+                          className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-sm"
+                        >
+                          <option value="">Select version...</option>
+                          {script.versions.map((v, idx) => (
+                            <option key={v.id} value={v.id}>
+                              {idx === 0 ? 'Latest' : `Version ${script.versions.length - idx}`} - {format(new Date(v.timestamp), 'PP')}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="flex-1">
+                        <label className="block text-xs text-gray-400 mb-1">Version B (Modified / Current)</label>
+                        <select
+                          value={compareVersionB || ''}
+                          onChange={e => setCompareVersionB(e.target.value)}
+                          className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-sm"
+                        >
+                          <option value="">Select version...</option>
+                          {script.versions.map((v, idx) => (
+                            <option key={v.id} value={v.id}>
+                              {idx === 0 ? 'Latest' : `Version ${script.versions.length - idx}`} - {format(new Date(v.timestamp), 'PP')}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <button
+                        onClick={() => {
+                          if (compareVersionA && compareVersionB) setShowComparison(true);
+                        }}
+                        disabled={!compareVersionA || !compareVersionB}
+                        className="bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed px-6 py-2 rounded-lg text-sm font-medium h-[38px]"
                       >
-                        <div className="flex items-center justify-between mb-3">
-                          <span className="text-sm font-medium text-gray-200">
-                            {isLatest ? '✨ Latest Version' : `💻 Version ${versionNumber}`}
-                          </span>
-                          <span className="text-xs text-gray-400">
-                            {format(new Date(version.timestamp), 'PPp')}
-                          </span>
+                        Compare
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Side-by-Side Comparison View */}
+                {showComparison && compareVersionA && compareVersionB ? (
+                  <div className="flex-1 overflow-hidden p-6 bg-gray-900 border-t border-gray-700">
+                    {(() => {
+                      const versionA = script.versions.find(v => v.id === compareVersionA);
+                      const versionB = script.versions.find(v => v.id === compareVersionB);
+                      if (!versionA || !versionB) return null;
+                      return (
+                        <div className="h-full flex flex-col">
+                          <div className="flex justify-between mb-2">
+                            <h4 className="font-semibold text-gray-300">Comparing Versions</h4>
+                            <button
+                              onClick={() => setShowComparison(false)}
+                              className="text-xs text-indigo-400 hover:text-indigo-300 underline"
+                            >
+                              Back to list
+                            </button>
+                          </div>
+                          <VersionComparisonView
+                            oldContent={versionA.code}
+                            newContent={versionB.code}
+                          />
                         </div>
+                      );
+                    })()}
+                  </div>
+                ) : (
+                  <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-gray-900">
+                    {[...script.versions].reverse().map((version, index) => {
+                      const versionNumber = script.versions.length - index;
+                      const isLatest = index === 0;
 
-                        <div className="space-y-2 mb-3">
-                          <div className="text-sm">
-                            <span className="font-medium text-gray-300">Action:</span>{' '}
-                            <span className="text-gray-400">{version.action}</span>
+                      return (
+                        <div
+                          key={version.id}
+                          className="border border-gray-700 rounded-lg p-4 bg-gray-800 hover:border-indigo-500 transition-colors"
+                        >
+                          <div className="flex items-center justify-between mb-3">
+                            <span className="text-sm font-medium text-gray-200">
+                              {isLatest ? '✨ Latest Version' : `💻 Version ${versionNumber}`}
+                            </span>
+                            <span className="text-xs text-gray-400">
+                              {format(new Date(version.timestamp), 'PPp')}
+                            </span>
                           </div>
 
-                          <div className="text-sm">
-                            <span className="font-medium text-gray-300">Language:</span>{' '}
-                            <span className="text-gray-400 capitalize">{script.language}</span>
-                          </div>
-
-                          {version.code && (
+                          <div className="space-y-2 mb-3">
                             <div className="text-sm">
-                              <span className="font-medium text-gray-300">Code Preview:</span>
-                              <span className="mt-1 bg-gray-800 rounded  max-h-40 overflow-y-auto w-3/4">
-                                {/* <SyntaxHighlighter
-                                  language={script.language}
-                                  style={vscDarkPlus}
-                                  customStyle={{
-                                    margin: 0,
-                                    padding: '0.75rem',
-                                    fontSize: '0.75rem',
-                                    background: '#1e1e1e',
-                                    width: 'max-content'
-                                  }}
-                                  showLineNumbers={false}
-                                >
-                                </SyntaxHighlighter> */}
-                                {version.code.substring(0, 200)}
-                                {version.code.length > 200 ? '\n\n// ...' : ''}
-                              </span>
+                              <span className="font-medium text-gray-400">Action:</span>{' '}
+                              <span className="text-gray-300">{version.action}</span>
                             </div>
+
+                            {version.code && (
+                              <div className="text-sm">
+                                <span className="font-medium text-gray-400 block mb-1">Code Preview:</span>
+                                <div className="bg-gray-900 rounded p-2 text-xs font-mono text-gray-400 max-h-32 overflow-hidden relative">
+                                  {version.code.substring(0, 200)}
+                                  {version.code.length > 200 && <span className="text-gray-600">...</span>}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+
+                          {!isLatest && (
+                            <button
+                              onClick={() => handleRestoreVersion(version)}
+                              className="flex items-center gap-2 text-sm text-indigo-400 hover:text-indigo-300 transition-colors mt-2"
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                              </svg>
+                              Revert to this version
+                            </button>
                           )}
                         </div>
-
-                        {!isLatest && (
-                          <button
-                            onClick={() => handleRestoreVersion(version)}
-                            className="flex items-center gap-2 text-sm text-purple-400 hover:text-purple-300 transition-colors"
-                          >
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                            </svg>
-                            Revert to this version
-                          </button>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             )}
-          </>
+          </div>
         ) : (
-          <div className="flex-1 flex items-center justify-center text-gray-500">
-            Select a script or create a new one
+          <div className="flex-1 flex flex-col items-center justify-center text-gray-500 gap-4">
+            <div className="w-20 h-20 bg-gray-800 rounded-2xl flex items-center justify-center">
+              <Icons.Command />
+            </div>
+            <div className="text-center">
+              <h3 className="text-lg font-medium text-gray-400 mb-1">No Script Selected</h3>
+              <p className="text-sm text-gray-600">Select a script from the sidebar or create a new one</p>
+            </div>
+            <button
+              onClick={handleCreate}
+              className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded-lg transition flex items-center gap-2 mt-2"
+            >
+              <Icons.Plus /> Create Script
+            </button>
           </div>
         )}
       </div>
@@ -2678,13 +2931,16 @@ function StatusBar() {
 // Main App Component
 export default function Home() {
   const { data: session, status } = useSession();
-  const { isAuthenticated, repoSelected, currentTab, setSession, globalSearchOpen, setGlobalSearchOpen, setCurrentTab, saveToGitHub } = useStore();
+  const { isAuthenticated, repoSelected, currentTab, setSession, globalSearchOpen, setGlobalSearchOpen, setCurrentTab, saveToGitHub, accessToken: currentAccessToken } = useStore();
   useEffect(() => {
     if (session?.user && session?.accessToken) {
-      console.log('Setting session with token:', session.accessToken ? 'Token exists' : 'No token');
-      setSession(session.user, session.accessToken);
+      // Only set session if token has changed or we're not authenticated to prevent workspace reload on window focus
+      if (session.accessToken !== currentAccessToken || !isAuthenticated) {
+        console.log('Setting session with token:', session.accessToken ? 'Token exists' : 'No token');
+        setSession(session.user, session.accessToken);
+      }
     }
-  }, [session, setSession]);
+  }, [session, setSession, currentAccessToken, isAuthenticated]);
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
