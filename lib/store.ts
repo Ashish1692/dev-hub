@@ -801,7 +801,7 @@ export const useStore = create<AppState>((set, get) => {
           versions: [...task.versions, {
             id: generateId(),
             timestamp: now,
-            action: `Moved from "${fromColumn.title}" to "${toColumn.title}"`,
+            action: `Moved from '${fromColumn.title}' to '${toColumn.title}'`,
             content: task.content,
           }],
           updatedAt: now,

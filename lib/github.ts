@@ -119,7 +119,11 @@ class GitHubAPI {
   async loadFile(filename: string): Promise<{ data: any; sha: string } | null> {
     try {
       const file = await this.request(`/repos/${this.repo}/contents/${filename}.json`);
-      const content = atob(file.content.replace(/\n/g, ''));
+      // Use TextDecoder to correctly handle UTF-8 multi-byte characters.
+      // atob() only handles Latin-1 and would corrupt non-ASCII characters.
+      const binaryStr = atob(file.content.replace(/\n/g, ''));
+      const bytes = Uint8Array.from(binaryStr, c => c.charCodeAt(0));
+      const content = new TextDecoder('utf-8').decode(bytes);
       const data = JSON.parse(content);
       this.shaCache.set(filename, file.sha);
       return { data, sha: file.sha };
@@ -158,7 +162,11 @@ class GitHubAPI {
             }
             sha = undefined;
           }
-          const content = btoa(unescape(encodeURIComponent(JSON.stringify(data, null, 2))));
+          // Use TextEncoder for a clean, standards-compliant UTF-8 → Base64 conversion.
+          // The legacy btoa(unescape(encodeURIComponent(...))) pattern is fragile and deprecated.
+          const jsonStr = JSON.stringify(data, null, 2);
+          const jsonBytes = new TextEncoder().encode(jsonStr);
+          const content = btoa(String.fromCharCode(...Array.from(jsonBytes)));
 
           const body: any = {
             message: message || `Update ${filename} - ${new Date().toISOString()}`,
